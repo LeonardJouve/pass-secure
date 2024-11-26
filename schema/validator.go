@@ -8,10 +8,9 @@ import (
 
 const EMAIL_REGEX = `^.+@.+\..+$`
 
-var validate *validator.Validate
+var validate *validator.Validate = validator.New()
 
 func Init() {
-	validate = validator.New()
 	validate.RegisterValidation("email", validateEmail)
 }
 

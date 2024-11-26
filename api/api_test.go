@@ -3,14 +3,15 @@ package api
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 
 	"github.com/LeonardJouve/pass-secure/database"
 	"github.com/LeonardJouve/pass-secure/database/model"
+	"github.com/LeonardJouve/pass-secure/schema"
 	"github.com/gofiber/fiber/v2"
 )
 
@@ -30,8 +31,15 @@ func readJSONBody(response *http.Response) (map[string]interface{}, error) {
 	return data, nil
 }
 
+const TEST_DB = "./test.db"
+
 func TestPrepare(t *testing.T) {
-	database.Init("./test.db")
+	err := database.Init(TEST_DB)
+	if err != nil {
+		t.Fatal("Failed to initiate database connection")
+	}
+
+	schema.Init()
 }
 
 func TestHealthCare(t *testing.T) {
@@ -67,7 +75,17 @@ func TestRegister(t *testing.T) {
 	app := fiber.New()
 	app.Post("/register", Register)
 
-	body := []byte(fmt.Sprintf(`{"email": "%s", "password": "%s", passwordConfirm: "%s"}`, dummyUser.Email, dummyUser.Password, dummyUser.Password))
+	payload := schema.RegisterInput{
+		Email:           dummyUser.Email,
+		Password:        dummyUser.Password,
+		PasswordConfirm: dummyUser.Password,
+	}
+
+	body, err := json.Marshal(payload)
+	if err != nil {
+		t.Fatalf("Failed to marshal JSON: %v", err)
+	}
+
 	request := httptest.NewRequest("POST", "http://localhost/register", bytes.NewBuffer(body))
 	request.Header.Set("Content-Type", "application/json")
 	response, err := app.Test(request)
@@ -94,7 +112,16 @@ func TestLogin(t *testing.T) {
 	app := fiber.New()
 	app.Post("/login", Login)
 
-	body := []byte(fmt.Sprintf(`{"email": "%s", "password": "%s"}`, dummyUser.Email, dummyUser.Password))
+	payload := schema.LoginInput{
+		Email:    dummyUser.Email,
+		Password: dummyUser.Password,
+	}
+
+	body, err := json.Marshal(payload)
+	if err != nil {
+		t.Fatalf("Failed to marshal JSON: %v", err)
+	}
+
 	request := httptest.NewRequest("POST", "http://localhost/login", bytes.NewBuffer(body))
 	request.Header.Set("Content-Type", "application/json")
 	response, err := app.Test(request)
@@ -111,8 +138,21 @@ func TestLogin(t *testing.T) {
 		t.Fatal("Failed to parse response JSON body")
 	}
 
-	_, ok := data["access_token"]
+	_, ok := data["accessToken"]
 	if !ok {
 		t.Fatal("Received invalid response")
+	}
+}
+
+func TestAfterAll(t *testing.T) {
+	db, err := database.Database.DB()
+	if err != nil {
+		t.Fatalf("Failed to retrieve database: %v", err)
+	}
+	db.Close()
+
+	err = os.Remove(TEST_DB)
+	if err != nil {
+		t.Fatalf("Failed to remove test database: %v", err)
 	}
 }

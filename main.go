@@ -3,10 +3,12 @@ package main
 import (
 	"github.com/LeonardJouve/pass-secure/api"
 	"github.com/LeonardJouve/pass-secure/database"
+	"github.com/LeonardJouve/pass-secure/schema"
 	"github.com/gofiber/fiber/v2"
 )
 
 func main() {
+	schema.Init()
 	err := database.Init("./db.db")
 	if err != nil {
 		panic("Could not initialize database")

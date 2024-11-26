@@ -13,8 +13,8 @@ type SanitizedUser struct {
 	Email string `json:"email"`
 }
 
-func (user *User) Sanitize() SanitizedUser {
-	return SanitizedUser{
+func (user *User) Sanitize() *SanitizedUser {
+	return &SanitizedUser{
 		ID:    user.ID,
 		Email: user.Email,
 	}

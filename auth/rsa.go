@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/LeonardJouve/pass-secure/status"
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v5"
 )
@@ -16,9 +17,7 @@ import (
 func getKeyPEM(c *fiber.Ctx, name string, private bool) ([]byte, bool) {
 	filename, err := getRSAFilepath(name, private)
 	if err != nil {
-		c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"message": "server error",
-		})
+		status.InternalServerError(c, nil)
 		return nil, false
 	}
 
@@ -27,17 +26,13 @@ func getKeyPEM(c *fiber.Ctx, name string, private bool) ([]byte, bool) {
 	if _, err := os.Stat(filename); err != nil {
 		_, keyPEM, err = generateKeys(name)
 		if err != nil {
-			c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-				"message": "server error",
-			})
+			status.InternalServerError(c, nil)
 			return nil, false
 		}
 	} else {
 		keyPEM, err = os.ReadFile(filename)
 		if err != nil {
-			c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-				"message": "server error",
-			})
+			status.InternalServerError(c, nil)
 			return nil, false
 		}
 	}
@@ -53,9 +48,7 @@ func getPrivateKey(c *fiber.Ctx, name string) (*rsa.PrivateKey, bool) {
 
 	privateKey, err := jwt.ParseRSAPrivateKeyFromPEM(privatePEM)
 	if err != nil {
-		c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"message": "server error",
-		})
+		status.InternalServerError(c, nil)
 		return nil, false
 	}
 
@@ -70,9 +63,7 @@ func getPublicKey(c *fiber.Ctx, name string) (*rsa.PublicKey, bool) {
 
 	publicKey, err := jwt.ParseRSAPublicKeyFromPEM(publicPEM)
 	if err != nil {
-		c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"message": "server error",
-		})
+		status.InternalServerError(c, nil)
 		return nil, false
 	}
 
