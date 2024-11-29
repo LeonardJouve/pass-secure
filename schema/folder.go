@@ -27,3 +27,25 @@ func GetCreateFolderInput(c *fiber.Ctx) (model.Folder, bool) {
 		ParentID: &input.ParentID,
 	}, true
 }
+
+type UpdateFolderInput struct {
+	Name     string `json:"name"`
+	ParentID uint   `json:"parentId"`
+}
+
+func GetUpdateFolderInput(c *fiber.Ctx, folder *model.Folder) bool {
+	var input UpdateFolderInput
+	if err := c.BodyParser(&input); err != nil {
+		status.BadRequest(c, err)
+		return false
+	}
+	if err := validate.Struct(input); err != nil {
+		status.BadRequest(c, err)
+		return false
+	}
+
+	folder.Name = input.Name
+	folder.ParentID = &input.ParentID
+
+	return true
+}

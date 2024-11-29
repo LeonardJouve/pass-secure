@@ -48,6 +48,44 @@ func CreateFolder(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusCreated).JSON(folder.Sanitize())
 }
 
+func UpdateFolder(c *fiber.Ctx) error {
+	tx, ok := database.BeginTransaction(c)
+	if !ok {
+		return nil
+	}
+	defer database.CommitTransactionIfSuccess(c, tx)
+
+	folderId, err := c.ParamsInt("folder_id")
+	if err != nil {
+		status.BadRequest(c, errors.New("invalid folder_id"))
+	}
+
+	folder, ok := getUserFolder(c, uint(folderId))
+	if !ok {
+		return nil
+	}
+
+	user, ok := getUser(c)
+	if !ok {
+		return nil
+	}
+
+	if folder.OwnerID != user.ID {
+		return status.Unauthorized(c, nil)
+	}
+
+	ok = schema.GetUpdateFolderInput(c, &folder)
+	if !ok {
+		return nil
+	}
+
+	if database.Database.Updates(&folder).Error != nil {
+		return nil
+	}
+
+	return c.Status(fiber.StatusOK).JSON(folder.Sanitize())
+}
+
 func GetFolders(c *fiber.Ctx) error {
 	folders, ok := getUserFolders(c)
 	if !ok {
@@ -63,12 +101,12 @@ func GetFolders(c *fiber.Ctx) error {
 }
 
 func GetFolder(c *fiber.Ctx) error {
-	folder_id, err := c.ParamsInt("folder_id")
+	folderId, err := c.ParamsInt("folder_id")
 	if err != nil {
 		status.BadRequest(c, errors.New("invalid folder_id"))
 	}
 
-	folder, ok := getUserFolder(c, uint(folder_id))
+	folder, ok := getUserFolder(c, uint(folderId))
 	if !ok {
 		return nil
 	}
@@ -77,12 +115,18 @@ func GetFolder(c *fiber.Ctx) error {
 }
 
 func RemoveFolder(c *fiber.Ctx) error {
-	folder_id, err := c.ParamsInt("folder_id")
+	tx, ok := database.BeginTransaction(c)
+	if !ok {
+		return nil
+	}
+	defer database.CommitTransactionIfSuccess(c, tx)
+
+	folderId, err := c.ParamsInt("folder_id")
 	if err != nil {
 		status.BadRequest(c, errors.New("invalid folder_id"))
 	}
 
-	folder, ok := getUserFolder(c, uint(folder_id))
+	folder, ok := getUserFolder(c, uint(folderId))
 	if !ok {
 		return nil
 	}
@@ -96,8 +140,12 @@ func RemoveFolder(c *fiber.Ctx) error {
 		return status.Unauthorized(c, nil)
 	}
 
-	if database.Database.Unscoped().Delete(&folder).Error != nil {
-		return status.InternalServerError(c, nil)
+	if ok := database.Execute(c, tx.Model(&user).Association("Folders").Delete(&folder)); !ok {
+		return nil
+	}
+
+	if ok := database.Execute(c, tx.Unscoped().Delete(&folder).Error); !ok {
+		return nil
 	}
 
 	return status.Ok(c, nil)

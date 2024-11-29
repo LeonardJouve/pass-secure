@@ -39,6 +39,7 @@ func main() {
 	folderGroup.Get("/", api.GetFolders)
 	folderGroup.Post("/:folder_id", api.CreateFolder)
 	folderGroup.Get("/:folder_id", api.GetFolder)
+	folderGroup.Put("/:folder_id", api.UpdateFolder)
 	folderGroup.Delete("/:folder_id", api.RemoveFolder)
 
 	entriesGroup := apiGroup.Group("/entries")
