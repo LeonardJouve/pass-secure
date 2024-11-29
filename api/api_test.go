@@ -45,7 +45,7 @@ func TestHealthCare(t *testing.T) {
 		t.Fatal("Failed to parse response JSON body")
 	}
 
-	if data["status"] != "ok" {
-		t.Fatalf("Received invalid status: expected ok, received %s", data["status"])
+	if data["message"] != "ok" {
+		t.Fatalf("Received invalid status: expected ok, received %s", data["message"])
 	}
 }

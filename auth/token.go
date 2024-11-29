@@ -72,7 +72,7 @@ func ValidateToken(c *fiber.Ctx, token string) (jwt.RegisteredClaims, bool) {
 
 func IsExpired(c *fiber.Ctx, claims jwt.RegisteredClaims) (bool, bool) {
 	var user model.User
-	if err := database.Database.Model(&model.User{}).Where("id = ?", claims.Subject).First(&user).Error; err != nil {
+	if err := database.Database.Where("id = ?", claims.Subject).First(&user).Error; err != nil {
 		status.InternalServerError(c, nil)
 		return false, false
 	}

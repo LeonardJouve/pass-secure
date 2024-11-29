@@ -6,6 +6,7 @@ type User struct {
 	gorm.Model
 	Email    string `gorm:"unique"`
 	Password string
+	Folders  []Folder `gorm:"many2many:user_folders;constraint:OnDelete:CASCADE"`
 }
 
 type SanitizedUser struct {

@@ -84,3 +84,13 @@ func Login(c *fiber.Ctx) error {
 		"accessToken": accessToken,
 	})
 }
+
+func getUser(c *fiber.Ctx) (model.User, bool) {
+	user, ok := c.Locals("user").(model.User)
+	if !ok {
+		status.InternalServerError(c, nil)
+		return model.User{}, false
+	}
+
+	return user, true
+}

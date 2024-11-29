@@ -33,10 +33,19 @@ func main() {
 	app.Post("/login", api.Login)
 	app.Post("/register", api.Register)
 
-	apiGroup := app.Group("/api", api.Protect)
+	apiGroup := app.Group("", api.Protect)
+
+	folderGroup := apiGroup.Group("/folder")
+	folderGroup.Get("/", api.GetFolders)
+	folderGroup.Post("/:folder_id", api.CreateFolder)
+	folderGroup.Get("/:folder_id", api.GetFolder)
+	folderGroup.Delete("/:folder_id", api.RemoveFolder)
 
 	entriesGroup := apiGroup.Group("/entries")
 	entriesGroup.Get("/", api.GetEntries)
+	entriesGroup.Post("/:entry_id", api.CreateEntry)
+	entriesGroup.Get("/:entry_id", api.GetEntry)
+	entriesGroup.Delete("/:entry_id", api.RemoveEntry)
 
 	app.Listen(":3000")
 }

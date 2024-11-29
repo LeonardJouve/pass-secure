@@ -35,9 +35,20 @@ func Unauthorized(c *fiber.Ctx, err error) error {
 	})
 }
 
+func NotFound(c *fiber.Ctx, err error) error {
+	message := "not found"
+	if err != nil {
+		message = err.Error()
+	}
+
+	return c.Status(fiber.StatusNotFound).JSON(&fiber.Map{
+		"message": message,
+	})
+}
+
 func Ok(c *fiber.Ctx, content interface{}) error {
 	var data interface{} = &fiber.Map{
-		"status": "ok",
+		"message": "ok",
 	}
 	if content != nil {
 		data = content
