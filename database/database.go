@@ -3,7 +3,6 @@ package database
 import (
 	"errors"
 
-	"github.com/LeonardJouve/pass-secure/database/model"
 	"github.com/LeonardJouve/pass-secure/status"
 	"github.com/gofiber/fiber/v2"
 	"gorm.io/driver/sqlite"
@@ -15,8 +14,6 @@ var Database *gorm.DB
 func Init(path string) error {
 	var err error
 	Database, err = gorm.Open(sqlite.Open(path), &gorm.Config{})
-
-	Database.AutoMigrate(&model.User{})
 
 	return err
 }

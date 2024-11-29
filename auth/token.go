@@ -5,6 +5,8 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/LeonardJouve/pass-secure/database"
+	"github.com/LeonardJouve/pass-secure/database/model"
 	"github.com/LeonardJouve/pass-secure/status"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/utils"
@@ -46,11 +48,11 @@ func CreateToken(c *fiber.Ctx, userId uint) (string, bool) {
 	return token, true
 }
 
-func ValidateToken(c *fiber.Ctx, name string, token string) bool {
-	publicKey, ok := getPublicKey(c, name)
+func ValidateToken(c *fiber.Ctx, token string) (jwt.RegisteredClaims, bool) {
+	publicKey, ok := getPublicKey(c, ACCESS_TOKEN)
 	if !ok {
 		status.Unauthorized(c, nil)
-		return false
+		return jwt.RegisteredClaims{}, false
 	}
 
 	var claims = jwt.RegisteredClaims{}
@@ -62,8 +64,23 @@ func ValidateToken(c *fiber.Ctx, name string, token string) bool {
 	})
 	if err != nil {
 		status.Unauthorized(c, nil)
-		return false
+		return jwt.RegisteredClaims{}, false
 	}
 
-	return true
+	return claims, true
+}
+
+func IsExpired(c *fiber.Ctx, claims jwt.RegisteredClaims) (bool, bool) {
+	var user model.User
+	if err := database.Database.Model(&model.User{}).Where("id = ?", claims.Subject).First(&user).Error; err != nil {
+		status.InternalServerError(c, nil)
+		return false, false
+	}
+
+	if claims.ExpiresAt.Before(time.Now().UTC()) {
+		status.Unauthorized(c, nil)
+		return true, true
+	}
+
+	return false, true
 }
