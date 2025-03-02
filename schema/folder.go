@@ -44,8 +44,13 @@ func GetUpdateFolderInput(c *fiber.Ctx, folder *model.Folder) bool {
 		return false
 	}
 
-	folder.Name = input.Name
-	folder.ParentID = &input.ParentID
+	if len(input.Name) > 0 {
+		folder.Name = input.Name
+	}
+
+	if input.ParentID != 0 {
+		folder.ParentID = &input.ParentID
+	}
 
 	return true
 }

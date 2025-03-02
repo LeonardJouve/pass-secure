@@ -53,7 +53,7 @@ func GetEntries(c *fiber.Ctx) error {
 		return nil
 	}
 
-	var sanitizedEntries []model.SanitizedEntry
+	sanitizedEntries := []model.SanitizedEntry{}
 	for _, entry := range entries {
 		sanitizedEntries = append(sanitizedEntries, *entry.Sanitize())
 	}
@@ -73,6 +73,48 @@ func GetEntry(c *fiber.Ctx) error {
 	}
 
 	return status.Ok(c, entry.Sanitize())
+}
+
+func UpdateEntry(c *fiber.Ctx) error {
+	tx, ok := database.BeginTransaction(c)
+	if !ok {
+		return nil
+	}
+	defer database.CommitTransactionIfSuccess(c, tx)
+
+	entryId, err := c.ParamsInt("entry_id")
+	if err != nil {
+		status.BadRequest(c, errors.New("invalid entry_id"))
+	}
+
+	entry, ok := getUserEntry(c, uint(entryId))
+	if !ok {
+		return nil
+	}
+
+	user, ok := getUser(c)
+	if !ok {
+		return nil
+	}
+
+	if ok := database.Execute(c, tx.Preload("Folders").First(&entry).Error); !ok {
+		return nil
+	}
+
+	if entry.Parent.OwnerID != user.ID {
+		return status.Unauthorized(c, nil)
+	}
+
+	ok = schema.GetUpdateEntryInput(c, &entry)
+	if !ok {
+		return nil
+	}
+
+	if database.Database.Updates(&entry).Error != nil {
+		return nil
+	}
+
+	return c.Status(fiber.StatusOK).JSON(entry.Sanitize())
 }
 
 func RemoveEntry(c *fiber.Ctx) error {

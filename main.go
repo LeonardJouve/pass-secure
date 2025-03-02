@@ -35,18 +35,27 @@ func main() {
 
 	apiGroup := app.Group("", api.Protect)
 
-	folderGroup := apiGroup.Group("/folder")
+	folderGroup := apiGroup.Group("/folders")
 	folderGroup.Get("/", api.GetFolders)
-	folderGroup.Post("/:folder_id", api.CreateFolder)
 	folderGroup.Get("/:folder_id", api.GetFolder)
+	folderGroup.Post("/", api.CreateFolder)
 	folderGroup.Put("/:folder_id", api.UpdateFolder)
 	folderGroup.Delete("/:folder_id", api.RemoveFolder)
+	// TODO: add user
 
 	entriesGroup := apiGroup.Group("/entries")
 	entriesGroup.Get("/", api.GetEntries)
-	entriesGroup.Post("/:entry_id", api.CreateEntry)
 	entriesGroup.Get("/:entry_id", api.GetEntry)
+	entriesGroup.Post("/", api.CreateEntry)
 	entriesGroup.Delete("/:entry_id", api.RemoveEntry)
+	// TODO: update entry
+
+	usersGroup := apiGroup.Group("/users")
+	usersGroup.Get("/", api.GetUsers)
+	usersGroup.Get("/:user_id", api.GetUser)
+	// TODO: remove user
+	// TODO: update user
+	// TODO: get me
 
 	app.Listen(":3000")
 }

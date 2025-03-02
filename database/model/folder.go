@@ -1,7 +1,6 @@
 package model
 
 import (
-	"github.com/LeonardJouve/pass-secure/database"
 	"gorm.io/gorm"
 )
 
@@ -13,7 +12,7 @@ type Folder struct {
 	ParentID *uint
 	Parent   *Folder `gorm:"foreignKey:ParentID"`
 	Users    []User  `gorm:"many2many:user_folders"`
-	Entries  []Entry `gorm:"many2many:folder_entries;constraint:OnDelete:CASCADE"`
+	Entries  []Entry `gorm:"foreignKey:ParentID;constraint:OnDelete:CASCADE"`
 }
 
 type SanitizedFolder struct {
@@ -25,8 +24,6 @@ type SanitizedFolder struct {
 }
 
 func (folder *Folder) Sanitize() *SanitizedFolder {
-	database.Database.Preload("Users").Find(&folder)
-
 	userIds := []uint{}
 	for _, user := range folder.Users {
 		userIds = append(userIds, user.ID)

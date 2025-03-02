@@ -26,8 +26,8 @@ func Protect(c *fiber.Ctx) error {
 		return nil
 	}
 
-	expired, ok := auth.IsExpired(c, accessTokenClaims)
-	if !ok || expired {
+	expired := auth.IsExpired(c, accessTokenClaims)
+	if expired {
 		return nil
 	}
 
@@ -63,6 +63,13 @@ func Register(c *fiber.Ctx) error {
 	}
 
 	if ok := database.Execute(c, tx.Create(&user).Error); !ok {
+		return nil
+	}
+
+	folder := model.Folder{
+		Name: "",
+	}
+	if err := createFolder(c, tx, &folder, &user, nil); err != nil {
 		return nil
 	}
 

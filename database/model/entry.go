@@ -7,7 +7,7 @@ type Entry struct {
 	Name     string
 	Password string
 	ParentID uint
-	Parent   Folder `gorm:"many2many:folder_entries;foreignKey:ParentID"`
+	Parent   Folder `gorm:"foreignKey:ParentID"`
 }
 
 type SanitizedEntry struct {

@@ -8,6 +8,7 @@ import (
 	"github.com/LeonardJouve/pass-secure/schema"
 	"github.com/LeonardJouve/pass-secure/status"
 	"github.com/gofiber/fiber/v2"
+	"gorm.io/gorm"
 )
 
 func CreateFolder(c *fiber.Ctx) error {
@@ -26,22 +27,13 @@ func CreateFolder(c *fiber.Ctx) error {
 	if !ok {
 		return nil
 	}
-	folder.OwnerID = user.ID
 
 	parentFolder, ok := getUserFolder(c, *folder.ParentID)
 	if !ok {
 		return nil
 	}
 
-	if parentFolder.OwnerID != user.ID {
-		return status.Unauthorized(c, nil)
-	}
-
-	if ok := database.Execute(c, tx.Create(&folder).Error); !ok {
-		return nil
-	}
-
-	if ok := database.Execute(c, tx.Model(&user).Association("Folders").Append(&folder)); !ok {
+	if err := createFolder(c, tx, &folder, &user, &parentFolder); err != nil {
 		return nil
 	}
 
@@ -92,7 +84,7 @@ func GetFolders(c *fiber.Ctx) error {
 		return nil
 	}
 
-	var sanitizedFolders []model.SanitizedFolder
+	sanitizedFolders := []model.SanitizedFolder{}
 	for _, folder := range folders {
 		sanitizedFolders = append(sanitizedFolders, *folder.Sanitize())
 	}
@@ -140,6 +132,10 @@ func RemoveFolder(c *fiber.Ctx) error {
 		return status.Unauthorized(c, nil)
 	}
 
+	if folder.ParentID == nil {
+		return status.Unauthorized(c, nil)
+	}
+
 	if ok := database.Execute(c, tx.Model(&user).Association("Folders").Delete(&folder)); !ok {
 		return nil
 	}
@@ -157,12 +153,17 @@ func getUserFolders(c *fiber.Ctx) ([]model.Folder, bool) {
 		return []model.Folder{}, false
 	}
 
-	if database.Database.Preload("Folders").First(&user).Error != nil {
+	var folders []model.Folder
+	if database.Database.
+		Joins("JOIN user_folders ON user_folders.folder_id = folders.id").
+		Where("user_folders.user_id = ?", user.ID).
+		Preload("Users").Preload("Entries").Preload("Parent").Preload("Owner").
+		Find(&folders).Error != nil {
 		status.InternalServerError(c, nil)
 		return []model.Folder{}, false
 	}
 
-	return user.Folders, true
+	return folders, true
 }
 
 func getUserFolder(c *fiber.Ctx, folderId uint) (model.Folder, bool) {
@@ -184,4 +185,38 @@ func getUserFolder(c *fiber.Ctx, folderId uint) (model.Folder, bool) {
 	}
 
 	return folder, true
+}
+
+func createFolder(c *fiber.Ctx, tx *gorm.DB, folder *model.Folder, user *model.User, parent *model.Folder) error {
+	if parent == nil {
+		err := tx.Where("parent_id IS NULL AND owner_id = ?", user.ID).First(&model.Folder{}).Error
+		if err == nil {
+			return status.Unauthorized(c, nil)
+		}
+		if !errors.Is(err, gorm.ErrRecordNotFound) {
+			return status.InternalServerError(c, nil)
+		}
+	} else if parent.OwnerID != user.ID {
+		return status.Unauthorized(c, nil)
+	}
+
+	if ok := database.Execute(c, tx.Create(folder).Error); !ok {
+		return status.InternalServerError(c, nil)
+	}
+
+	if ok := database.Execute(c, tx.Model(folder).Association("Users").Append(user)); !ok {
+		return status.InternalServerError(c, nil)
+	}
+
+	if ok := database.Execute(c, tx.Model(folder).Association("Owner").Append(user)); !ok {
+		return status.InternalServerError(c, nil)
+	}
+
+	if parent != nil {
+		if ok := database.Execute(c, tx.Model(folder).Association("Parent").Append(parent)); !ok {
+			return status.InternalServerError(c, nil)
+		}
+	}
+
+	return nil
 }

@@ -29,3 +29,27 @@ func GetCreateEntryInput(c *fiber.Ctx) (model.Entry, bool) {
 		ParentID: input.ParentID,
 	}, true
 }
+
+type UpdateEntryInput struct {
+	Name     string `json:"name"`
+	Password string `json:"password"`
+	ParentID uint   `json:"parentId"`
+}
+
+func GetUpdateEntryInput(c *fiber.Ctx, entry *model.Entry) bool {
+	var input UpdateEntryInput
+	if err := c.BodyParser(&input); err != nil {
+		status.BadRequest(c, err)
+		return false
+	}
+	if err := validate.Struct(input); err != nil {
+		status.BadRequest(c, err)
+		return false
+	}
+
+	entry.Name = input.Name
+	entry.Password = input.Password
+	entry.ParentID = input.ParentID
+
+	return true
+}

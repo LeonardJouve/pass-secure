@@ -70,17 +70,17 @@ func ValidateToken(c *fiber.Ctx, token string) (jwt.RegisteredClaims, bool) {
 	return claims, true
 }
 
-func IsExpired(c *fiber.Ctx, claims jwt.RegisteredClaims) (bool, bool) {
+func IsExpired(c *fiber.Ctx, claims jwt.RegisteredClaims) bool {
 	var user model.User
 	if err := database.Database.Where("id = ?", claims.Subject).First(&user).Error; err != nil {
 		status.InternalServerError(c, nil)
-		return false, false
+		return true
 	}
 
-	if claims.ExpiresAt.Before(time.Now().UTC()) {
+	if claims.ExpiresAt != nil && claims.ExpiresAt.Before(time.Now().UTC()) {
 		status.Unauthorized(c, nil)
-		return true, true
+		return true
 	}
 
-	return false, true
+	return false
 }
