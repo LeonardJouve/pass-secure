@@ -41,9 +41,6 @@ func Protect(c *fiber.Ctx) error {
 	if err := database.Database.First(&user, userId).Error; err != nil {
 		return status.InternalServerError(c, nil)
 	}
-	if user.ID == 0 {
-		return status.Unauthorized(c, nil)
-	}
 
 	c.Locals("user", user)
 

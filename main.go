@@ -52,10 +52,10 @@ func main() {
 
 	usersGroup := apiGroup.Group("/users")
 	usersGroup.Get("/", api.GetUsers)
+	usersGroup.Get("/me", api.GetMe)
+	usersGroup.Delete("/me", api.RemoveMe)
 	usersGroup.Get("/:user_id", api.GetUser)
-	// TODO: remove user
 	// TODO: update user
-	// TODO: get me
 
 	app.Listen(":3000")
 }

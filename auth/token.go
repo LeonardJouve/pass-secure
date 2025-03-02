@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"time"
@@ -11,6 +12,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/utils"
 	"github.com/golang-jwt/jwt/v5"
+	"gorm.io/gorm"
 )
 
 const (
@@ -72,7 +74,11 @@ func ValidateToken(c *fiber.Ctx, token string) (jwt.RegisteredClaims, bool) {
 
 func IsExpired(c *fiber.Ctx, claims jwt.RegisteredClaims) bool {
 	var user model.User
-	if err := database.Database.Where("id = ?", claims.Subject).First(&user).Error; err != nil {
+	err := database.Database.First(&user, claims.Subject).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		status.Unauthorized(c, nil)
+		return true
+	} else if err != nil {
 		status.InternalServerError(c, nil)
 		return true
 	}

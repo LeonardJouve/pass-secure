@@ -46,3 +46,22 @@ func GetMe(c *fiber.Ctx) error {
 
 	return status.Ok(c, user.Sanitize())
 }
+
+func RemoveMe(c *fiber.Ctx) error {
+	tx, ok := database.BeginTransaction(c)
+	if !ok {
+		return nil
+	}
+	defer database.CommitTransactionIfSuccess(c, tx)
+
+	user, ok := getUser(c)
+	if !ok {
+		return nil
+	}
+
+	if ok := database.Execute(c, tx.Unscoped().Delete(&user).Error); !ok {
+		return nil
+	}
+
+	return status.Ok(c, nil)
+}
