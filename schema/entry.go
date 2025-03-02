@@ -47,9 +47,17 @@ func GetUpdateEntryInput(c *fiber.Ctx, entry *model.Entry) bool {
 		return false
 	}
 
-	entry.Name = input.Name
-	entry.Password = input.Password
-	entry.ParentID = input.ParentID
+	if len(input.Name) > 0 {
+		entry.Name = input.Name
+	}
+
+	if len(input.Password) > 0 {
+		entry.Password = input.Password
+	}
+
+	if input.ParentID != 0 {
+		entry.ParentID = input.ParentID
+	}
 
 	return true
 }

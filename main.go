@@ -47,8 +47,8 @@ func main() {
 	entriesGroup.Get("/", api.GetEntries)
 	entriesGroup.Get("/:entry_id", api.GetEntry)
 	entriesGroup.Post("/", api.CreateEntry)
+	entriesGroup.Put("/:entry_id", api.UpdateEntry)
 	entriesGroup.Delete("/:entry_id", api.RemoveEntry)
-	// TODO: update entry
 
 	usersGroup := apiGroup.Group("/users")
 	usersGroup.Get("/", api.GetUsers)
@@ -56,6 +56,10 @@ func main() {
 	usersGroup.Delete("/me", api.RemoveMe)
 	usersGroup.Put("/me", api.UpdateMe)
 	usersGroup.Get("/:user_id", api.GetUser)
+
+	// TODO: on delete user
+	// TODO: on delete folder
+	// TODO: testing venom
 
 	app.Listen(":3000")
 }

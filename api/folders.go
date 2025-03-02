@@ -136,11 +136,7 @@ func RemoveFolder(c *fiber.Ctx) error {
 		return status.Unauthorized(c, nil)
 	}
 
-	if ok := database.Execute(c, tx.Model(&user).Association("Folders").Delete(&folder)); !ok {
-		return nil
-	}
-
-	if ok := database.Execute(c, tx.Unscoped().Delete(&folder).Error); !ok {
+	if ok := database.Execute(c, tx.Delete(&folder).Error); !ok {
 		return nil
 	}
 

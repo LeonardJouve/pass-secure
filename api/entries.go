@@ -40,11 +40,11 @@ func CreateEntry(c *fiber.Ctx) error {
 		return nil
 	}
 
-	if ok := database.Execute(c, tx.Model(&model.Folder{}).Association("Entries").Append(&entry)); !ok {
+	if ok := database.Execute(c, tx.Model(&entry).Association("Parent").Replace(&parentFolder)); !ok {
 		return nil
 	}
 
-	return c.Status(fiber.StatusCreated).JSON(entry.Sanitize())
+	return status.Created(c, entry.Sanitize())
 }
 
 func GetEntries(c *fiber.Ctx) error {
@@ -97,10 +97,6 @@ func UpdateEntry(c *fiber.Ctx) error {
 		return nil
 	}
 
-	if ok := database.Execute(c, tx.Preload("Folders").First(&entry).Error); !ok {
-		return nil
-	}
-
 	if entry.Parent.OwnerID != user.ID {
 		return status.Unauthorized(c, nil)
 	}
@@ -114,7 +110,7 @@ func UpdateEntry(c *fiber.Ctx) error {
 		return nil
 	}
 
-	return c.Status(fiber.StatusOK).JSON(entry.Sanitize())
+	return status.Ok(c, entry.Sanitize())
 }
 
 func RemoveEntry(c *fiber.Ctx) error {
@@ -128,10 +124,6 @@ func RemoveEntry(c *fiber.Ctx) error {
 		return nil
 	}
 
-	if database.Database.Preload("Folders").First(&entry).Error != nil {
-		return status.InternalServerError(c, nil)
-	}
-
 	user, ok := getUser(c)
 	if !ok {
 		return nil
@@ -141,7 +133,7 @@ func RemoveEntry(c *fiber.Ctx) error {
 		return status.Unauthorized(c, nil)
 	}
 
-	if database.Database.Unscoped().Delete(&entry).Error != nil {
+	if database.Database.Delete(&entry).Error != nil {
 		return status.InternalServerError(c, nil)
 	}
 
@@ -154,14 +146,15 @@ func getUserEntries(c *fiber.Ctx) ([]model.Entry, bool) {
 		return []model.Entry{}, false
 	}
 
-	if database.Database.Preload("Entries").Find(&folders).Error != nil {
-		status.InternalServerError(c, nil)
-		return []model.Entry{}, false
-	}
-
-	var entries []model.Entry
-	for _, f := range folders {
-		entries = append(entries, f.Entries...)
+	entries := []model.Entry{}
+	for _, folder := range folders {
+		for _, entry := range folder.Entries {
+			if err := database.Database.Model(&entry).Association("Parent").Find(&entry.Parent); err != nil {
+				status.InternalServerError(c, nil)
+				return []model.Entry{}, false
+			}
+			entries = append(entries, entry)
+		}
 	}
 
 	return entries, true
