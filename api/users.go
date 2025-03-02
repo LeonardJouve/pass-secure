@@ -37,3 +37,12 @@ func GetUser(c *fiber.Ctx) error {
 
 	return status.Ok(c, user.Sanitize())
 }
+
+func GetMe(c *fiber.Ctx) error {
+	user, ok := getUser(c)
+	if !ok {
+		return status.Unauthorized(c, nil)
+	}
+
+	return status.Ok(c, user.Sanitize())
+}
