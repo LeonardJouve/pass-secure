@@ -54,8 +54,8 @@ func main() {
 	usersGroup.Get("/", api.GetUsers)
 	usersGroup.Get("/me", api.GetMe)
 	usersGroup.Delete("/me", api.RemoveMe)
+	usersGroup.Put("/me", api.UpdateMe)
 	usersGroup.Get("/:user_id", api.GetUser)
-	// TODO: update user
 
 	app.Listen(":3000")
 }

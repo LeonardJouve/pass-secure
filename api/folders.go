@@ -37,7 +37,7 @@ func CreateFolder(c *fiber.Ctx) error {
 		return nil
 	}
 
-	return c.Status(fiber.StatusCreated).JSON(folder.Sanitize())
+	return status.Created(c, folder.Sanitize())
 }
 
 func UpdateFolder(c *fiber.Ctx) error {
@@ -75,7 +75,7 @@ func UpdateFolder(c *fiber.Ctx) error {
 		return nil
 	}
 
-	return c.Status(fiber.StatusOK).JSON(folder.Sanitize())
+	return status.Ok(c, folder.Sanitize())
 }
 
 func GetFolders(c *fiber.Ctx) error {

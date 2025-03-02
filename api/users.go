@@ -5,6 +5,7 @@ import (
 
 	"github.com/LeonardJouve/pass-secure/database"
 	"github.com/LeonardJouve/pass-secure/database/model"
+	"github.com/LeonardJouve/pass-secure/schema"
 	"github.com/LeonardJouve/pass-secure/status"
 	"github.com/gofiber/fiber/v2"
 )
@@ -64,4 +65,28 @@ func RemoveMe(c *fiber.Ctx) error {
 	}
 
 	return status.Ok(c, nil)
+}
+
+func UpdateMe(c *fiber.Ctx) error {
+	tx, ok := database.BeginTransaction(c)
+	if !ok {
+		return nil
+	}
+	defer database.CommitTransactionIfSuccess(c, tx)
+
+	user, ok := getUser(c)
+	if !ok {
+		return nil
+	}
+
+	ok = schema.GetUpdateMeInput(c, &user)
+	if !ok {
+		return nil
+	}
+
+	if database.Database.Updates(&user).Error != nil {
+		return nil
+	}
+
+	return status.Ok(c, user.Sanitize())
 }
