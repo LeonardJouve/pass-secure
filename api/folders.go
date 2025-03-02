@@ -147,6 +147,47 @@ func RemoveFolder(c *fiber.Ctx) error {
 	return status.Ok(c, nil)
 }
 
+func InviteToFolder(c *fiber.Ctx) error {
+	tx, ok := database.BeginTransaction(c)
+	if !ok {
+		return nil
+	}
+	defer database.CommitTransactionIfSuccess(c, tx)
+
+	folderId, err := c.ParamsInt("folder_id")
+	if err != nil {
+		status.BadRequest(c, errors.New("invalid folder_id"))
+	}
+
+	folder, ok := getUserFolder(c, uint(folderId))
+	if !ok {
+		return nil
+	}
+
+	user, ok := getUser(c)
+	if !ok {
+		return nil
+	}
+
+	if folder.OwnerID != user.ID {
+		return status.Unauthorized(c, nil)
+	}
+
+	if folder.ParentID == nil {
+		return status.Unauthorized(c, nil)
+	}
+
+	if ok := schema.GetInviteToFolderInput(c, &folder); !ok {
+		return nil
+	}
+
+	if err := database.Database.Model(&folder).Association("Users").Replace(folder.Users); err != nil {
+		return nil
+	}
+
+	return status.Ok(c, folder.Sanitize())
+}
+
 func getUserFolders(c *fiber.Ctx) ([]model.Folder, bool) {
 	user, ok := getUser(c)
 	if !ok {

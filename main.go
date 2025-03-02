@@ -39,9 +39,9 @@ func main() {
 	folderGroup.Get("/", api.GetFolders)
 	folderGroup.Get("/:folder_id", api.GetFolder)
 	folderGroup.Post("/", api.CreateFolder)
+	folderGroup.Put("/:folder_id/invite", api.InviteToFolder)
 	folderGroup.Put("/:folder_id", api.UpdateFolder)
 	folderGroup.Delete("/:folder_id", api.RemoveFolder)
-	// TODO: add user
 
 	entriesGroup := apiGroup.Group("/entries")
 	entriesGroup.Get("/", api.GetEntries)
