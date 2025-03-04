@@ -60,7 +60,7 @@ func RemoveMe(c *fiber.Ctx) error {
 		return nil
 	}
 
-	if ok := database.Execute(c, tx.Delete(&user).Error); !ok {
+	if ok := database.Execute(c, tx.Unscoped().Delete(&user).Error); !ok {
 		return nil
 	}
 

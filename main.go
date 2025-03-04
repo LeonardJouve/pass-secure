@@ -57,9 +57,5 @@ func main() {
 	usersGroup.Put("/me", api.UpdateMe)
 	usersGroup.Get("/:user_id", api.GetUser)
 
-	// TODO: on delete user
-	// TODO: on delete folder
-	// TODO: testing venom
-
 	app.Listen(":3000")
 }

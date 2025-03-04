@@ -4,9 +4,10 @@ import "gorm.io/gorm"
 
 type User struct {
 	gorm.Model
-	Email    string `gorm:"unique"`
-	Password string
-	Folders  []Folder `gorm:"many2many:user_folders"`
+	Email        string `gorm:"unique"`
+	Password     string
+	OwnedFolders []Folder `gorm:"foreignKey:OwnerID;constraint:OnDelete:CASCADE"`
+	Folders      []Folder `gorm:"many2many:user_folders"`
 }
 
 type SanitizedUser struct {
