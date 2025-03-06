@@ -118,7 +118,7 @@ func getRSAFilepath(name string, private bool) (string, error) {
 		return "", err
 	}
 
-	folderpath := filepath.Join(filepath.Dir(path), "..", "rsa")
+	folderpath := filepath.Join(filepath.Dir(path), "rsa")
 
 	if _, err := os.Stat(folderpath); err != nil {
 		if err = os.Mkdir(folderpath, 0755); err != nil {

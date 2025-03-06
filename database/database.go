@@ -2,10 +2,12 @@ package database
 
 import (
 	"errors"
+	"fmt"
+	"os"
 
 	"github.com/LeonardJouve/pass-secure/status"
 	"github.com/gofiber/fiber/v2"
-	"gorm.io/driver/sqlite"
+	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 )
 
@@ -13,7 +15,8 @@ var Database *gorm.DB
 
 func Init(path string) error {
 	var err error
-	Database, err = gorm.Open(sqlite.Open(path), &gorm.Config{})
+	connectionURL := fmt.Sprintf("root:%s@tcp(127.0.0.1:3306)/%s?charset=utf8mb4&parseTime=True&loc=Local", os.Getenv("MYSQL_ROOT_PASSWORD"), os.Getenv("MYSQL_DATABASE"))
+	Database, err = gorm.Open(mysql.Open(connectionURL), &gorm.Config{})
 
 	return err
 }

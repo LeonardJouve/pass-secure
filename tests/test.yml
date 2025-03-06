@@ -1,0 +1,10 @@
+name: pass-secure
+testcases:
+  - name: Healthcheck Test
+    steps:
+      - type: http
+        method: GET
+        url: "{{base_url}}/healthcheck"
+        assertions:
+          - result.statuscode ShouldEqual 200
+          - result.bodyjson ShouldJSONContain '{"status":"ok"}'

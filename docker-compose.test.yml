@@ -1,0 +1,27 @@
+services:
+  pass-secure:
+    build:
+        context: .
+        dockerfile: Dockerfile.test
+    container_name: pass-secure
+    ports:
+      - "3000:${PORT}"
+    networks:
+        - network
+    depends_on:
+        - database
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE_TEST}
+  database:
+    image: mariadb:latest
+    container_name: database
+    networks:
+      - network
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE_TEST}
+
+networks:
+  network:
+    driver: bridge

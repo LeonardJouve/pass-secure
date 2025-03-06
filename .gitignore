@@ -1,1 +1,4 @@
 **/*.db
+rsa/*
+!rsa/.gitkeep
+.env

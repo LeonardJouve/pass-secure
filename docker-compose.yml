@@ -1,0 +1,27 @@
+services:
+  pass-secure:
+    build: .
+    container_name: pass-secure
+    ports:
+      - "3000:${PORT}"
+    networks:
+        - network
+    depends_on:
+        - database
+    volumes:
+        - ./rsa:/app/rsa
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+  database:
+    image: mariadb:latest
+    container_name: database
+    networks:
+      - network
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+
+networks:
+  network:
+    driver: bridge
