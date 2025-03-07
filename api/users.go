@@ -84,7 +84,7 @@ func UpdateMe(c *fiber.Ctx) error {
 		return nil
 	}
 
-	if database.Database.Updates(&user).Error != nil {
+	if ok := database.Execute(c, tx.Updates(&user).Error); !ok {
 		return nil
 	}
 

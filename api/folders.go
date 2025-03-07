@@ -71,7 +71,7 @@ func UpdateFolder(c *fiber.Ctx) error {
 		return nil
 	}
 
-	if database.Database.Updates(&folder).Error != nil {
+	if ok := database.Execute(c, tx.Updates(&folder).Error); !ok {
 		return nil
 	}
 
@@ -177,11 +177,64 @@ func InviteToFolder(c *fiber.Ctx) error {
 		return nil
 	}
 
-	if err := database.Database.Model(&folder).Association("Users").Replace(folder.Users); err != nil {
+	if ok := database.Execute(c, tx.Model(&folder).Association("Users").Replace(folder.Users)); !ok {
 		return nil
 	}
 
 	return status.Ok(c, folder.Sanitize())
+}
+
+func RemoveInviteToFolder(c *fiber.Ctx) error {
+	tx, ok := database.BeginTransaction(c)
+	if !ok {
+		return nil
+	}
+	defer database.CommitTransactionIfSuccess(c, tx)
+
+	folderId, err := c.ParamsInt("folder_id")
+	if err != nil {
+		status.BadRequest(c, errors.New("invalid folder_id"))
+	}
+
+	folder, ok := getUserFolder(c, uint(folderId))
+	if !ok {
+		return nil
+	}
+
+	user, ok := getUser(c)
+	if !ok {
+		return nil
+	}
+
+	if folder.OwnerID != user.ID {
+		return status.Unauthorized(c, nil)
+	}
+
+	inviteUserId, err := c.ParamsInt("user_id")
+	if err != nil {
+		status.BadRequest(c, errors.New("invalid user_id"))
+	}
+
+	found := false
+	for _, user := range folder.Users {
+		if user.ID == uint(inviteUserId) {
+			found = true
+		}
+	}
+	if !found {
+		status.BadRequest(c, errors.New("invalid user_id"))
+	}
+
+	var inviteUser model.User
+	if ok := database.Execute(c, tx.First(&inviteUser, inviteUserId).Error); !ok {
+		return nil
+	}
+
+	if ok := database.Execute(c, tx.Model(&folder).Association("Users").Delete(&inviteUser)); !ok {
+		return nil
+	}
+
+	return status.Ok(c, nil)
 }
 
 func getUserFolders(c *fiber.Ctx) ([]model.Folder, bool) {

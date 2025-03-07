@@ -26,6 +26,7 @@ func Start(port uint16) func() error {
 	folderGroup.Get("/:folder_id", GetFolder)
 	folderGroup.Post("/", CreateFolder)
 	folderGroup.Put("/:folder_id/invite", InviteToFolder)
+	folderGroup.Delete("/:folder_id/invite/:user_id", RemoveInviteToFolder)
 	folderGroup.Put("/:folder_id", UpdateFolder)
 	folderGroup.Delete("/:folder_id", RemoveFolder)
 

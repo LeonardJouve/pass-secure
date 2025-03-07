@@ -106,7 +106,7 @@ func UpdateEntry(c *fiber.Ctx) error {
 		return nil
 	}
 
-	if database.Database.Updates(&entry).Error != nil {
+	if ok := database.Execute(c, tx.Updates(&entry).Error); !ok {
 		return nil
 	}
 
