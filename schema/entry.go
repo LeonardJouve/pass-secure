@@ -9,7 +9,7 @@ import (
 type CreateEntryInput struct {
 	Name     string `json:"name" validate:"required"`
 	Password string `json:"password" validate:"required"`
-	ParentID uint   `json:"parentId" validate:"required"`
+	FolderID uint   `json:"folderId" validate:"required"`
 }
 
 func GetCreateEntryInput(c *fiber.Ctx) (model.Entry, bool) {
@@ -26,14 +26,14 @@ func GetCreateEntryInput(c *fiber.Ctx) (model.Entry, bool) {
 	return model.Entry{
 		Name:     input.Name,
 		Password: input.Password,
-		ParentID: input.ParentID,
+		FolderID: input.FolderID,
 	}, true
 }
 
 type UpdateEntryInput struct {
 	Name     string `json:"name"`
 	Password string `json:"password"`
-	ParentID uint   `json:"parentId"`
+	FolderID uint   `json:"folderId"`
 }
 
 func GetUpdateEntryInput(c *fiber.Ctx, entry *model.Entry) bool {
@@ -55,8 +55,8 @@ func GetUpdateEntryInput(c *fiber.Ctx, entry *model.Entry) bool {
 		entry.Password = input.Password
 	}
 
-	if input.ParentID != 0 {
-		entry.ParentID = input.ParentID
+	if input.FolderID != 0 {
+		entry.FolderID = input.FolderID
 	}
 
 	return true

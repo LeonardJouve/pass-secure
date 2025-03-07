@@ -27,7 +27,7 @@ func CreateEntry(c *fiber.Ctx) error {
 		return nil
 	}
 
-	parentFolder, ok := getUserFolder(c, entry.ParentID)
+	parentFolder, ok := getUserFolder(c, entry.FolderID)
 	if !ok {
 		return nil
 	}
@@ -40,7 +40,7 @@ func CreateEntry(c *fiber.Ctx) error {
 		return nil
 	}
 
-	if ok := database.Execute(c, tx.Model(&entry).Association("Parent").Replace(&parentFolder)); !ok {
+	if ok := database.Execute(c, tx.Model(&entry).Association("Folder").Replace(&parentFolder)); !ok {
 		return nil
 	}
 
@@ -97,7 +97,7 @@ func UpdateEntry(c *fiber.Ctx) error {
 		return nil
 	}
 
-	if entry.Parent.OwnerID != user.ID {
+	if entry.Folder.OwnerID != user.ID {
 		return status.Unauthorized(c, nil)
 	}
 
@@ -129,7 +129,7 @@ func RemoveEntry(c *fiber.Ctx) error {
 		return nil
 	}
 
-	if entry.Parent.OwnerID != user.ID {
+	if entry.Folder.OwnerID != user.ID {
 		return status.Unauthorized(c, nil)
 	}
 
@@ -149,7 +149,7 @@ func getUserEntries(c *fiber.Ctx) ([]model.Entry, bool) {
 	entries := []model.Entry{}
 	for _, folder := range folders {
 		for _, entry := range folder.Entries {
-			if err := database.Database.Model(&entry).Association("Parent").Find(&entry.Parent); err != nil {
+			if err := database.Database.Model(&entry).Association("Folder").Find(&entry.Folder); err != nil {
 				status.InternalServerError(c, nil)
 				return []model.Entry{}, false
 			}

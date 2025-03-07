@@ -32,7 +32,7 @@ services:
       test: ["CMD", "healthcheck.sh", "--su-mysql", "--connect", "--innodb_initialized"]
       interval: 5s
       retries: 5
-      start_period: 10s
+      start_period: 5s
 
 networks:
   network:

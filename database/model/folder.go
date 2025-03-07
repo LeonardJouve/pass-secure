@@ -12,7 +12,7 @@ type Folder struct {
 	ParentID *uint
 	Parent   *Folder `gorm:"foreignKey:ParentID"`
 	Users    []User  `gorm:"many2many:user_folders"`
-	Entries  []Entry `gorm:"foreignKey:ParentID;constraint:OnDelete:CASCADE"`
+	Entries  []Entry `gorm:"foreignKey:FolderID;constraint:OnDelete:CASCADE"`
 }
 
 type SanitizedFolder struct {

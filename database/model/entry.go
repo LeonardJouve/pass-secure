@@ -6,15 +6,15 @@ type Entry struct {
 	gorm.Model
 	Name     string
 	Password string
-	ParentID uint
-	Parent   Folder `gorm:"foreignKey:ParentID"`
+	FolderID uint
+	Folder   Folder `gorm:"foreignKey:FolderID"`
 }
 
 type SanitizedEntry struct {
 	ID       uint   `json:"id"`
 	Name     string `json:"name"`
 	Password string `json:"password"`
-	ParentID uint   `json:"parentId"`
+	FolderID uint   `json:"folderId"`
 }
 
 func (entry *Entry) Sanitize() *SanitizedEntry {
@@ -22,6 +22,6 @@ func (entry *Entry) Sanitize() *SanitizedEntry {
 		ID:       entry.ID,
 		Name:     entry.Name,
 		Password: entry.Password,
-		ParentID: entry.ParentID,
+		FolderID: entry.FolderID,
 	}
 }
