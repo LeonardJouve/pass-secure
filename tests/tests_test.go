@@ -13,24 +13,23 @@ import (
 	"github.com/LeonardJouve/pass-secure/database"
 	"github.com/LeonardJouve/pass-secure/database/model"
 	"github.com/LeonardJouve/pass-secure/schema"
+	"gorm.io/driver/sqlite"
 )
 
-const PORT = 3000
-
-func start(t *testing.T) func() error {
+func start(t *testing.T, port uint16) func() error {
 	path, err := os.Executable()
 	if err != nil {
-		t.Fatalf("could not retrieve executable path")
+		t.Fatal("could not retrieve executable path")
 	}
 
-	err = database.Init(filepath.Join(filepath.Dir(path), "test.db"))
-	if err != nil {
+	databasePath := filepath.Join(filepath.Dir(path), "test.db")
+	if err := database.Init(sqlite.Open(databasePath)); err != nil {
 		t.Fatal(err)
 	}
 
 	schema.Init()
 	model.Migrate()
-	shutdown := api.Start(PORT)
+	shutdown := api.Start(port)
 
 	waitForStart()
 
@@ -54,10 +53,11 @@ func waitForStart() {
 }
 
 func Test(t *testing.T) {
-	shutdown := start(t)
+	var port uint16 = 3000
+	shutdown := start(t, port)
 	defer shutdown()
 
-	cmd := exec.Command(fmt.Sprintf("docker run --rm -v \"$(pwd)/tests:/tests\" ovhcom/venom run /tests/test.yml --var=\"base_url=http://localhost:%d\"", PORT))
+	cmd := exec.Command(fmt.Sprintf("docker run --rm -v \"$(pwd)/tests:/tests\" ovhcom/venom run /tests/test.yml --var=\"base_url=http://localhost:%d\"", port))
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	err := cmd.Run()

@@ -126,12 +126,11 @@ func getRSAFilepath(name string, private bool) (string, error) {
 		}
 	}
 
-	filename := name + ".rsa"
 	if !private {
-		filename += ".pub"
+		name += ".pub"
 	}
 
-	filepath := filepath.Join(folderpath, filename)
+	filepath := filepath.Join(folderpath, name)
 
 	return filepath, nil
 }

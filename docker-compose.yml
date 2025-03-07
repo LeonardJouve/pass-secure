@@ -5,23 +5,34 @@ services:
     ports:
       - "3000:${PORT}"
     networks:
-        - network
+      - network
     depends_on:
-        - database
+      database:
+          condition: service_healthy
     volumes:
-        - ./rsa:/app/rsa
+      - ./rsa:/app/rsa
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_HOST: database
+      MYSQL_PORT: 3306
       MYSQL_DATABASE: ${MYSQL_DATABASE}
+      PORT: ${PORT}
   database:
     image: mariadb:latest
     container_name: database
     networks:
       - network
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_RANDOM_ROOT_PASSWORD: 1
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
       MYSQL_DATABASE: ${MYSQL_DATABASE}
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--su-mysql", "--connect", "--innodb_initialized"]
+      interval: 5s
+      retries: 5
+      start_period: 10s
 
 networks:
   network:
-    driver: bridge
