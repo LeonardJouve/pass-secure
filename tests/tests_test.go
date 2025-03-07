@@ -31,14 +31,14 @@ func start(t *testing.T, port uint16) func() error {
 	model.Migrate()
 	shutdown := api.Start(port)
 
-	waitForStart()
+	waitForStart(port)
 
 	return shutdown
 }
 
-func waitForStart() {
+func waitForStart(port uint16) {
 	for {
-		resp, err := http.Get(fmt.Sprintf("http://localhost:%d/healthcheck", PORT))
+		resp, err := http.Get(fmt.Sprintf("http://localhost:%d/healthcheck", port))
 		if err != nil {
 			continue
 		}
