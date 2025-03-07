@@ -7,4 +7,4 @@ testcases:
         url: "{{base_url}}/healthcheck"
         assertions:
           - result.statuscode ShouldEqual 200
-          - result.bodyjson ShouldJSONContain '{"status":"ok"}'
+          - result.bodyjson ShouldJSONContain '{"message":"ok"}'
