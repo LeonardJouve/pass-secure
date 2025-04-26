@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/LeonardJouve/pass-secure/database"
-	"github.com/LeonardJouve/pass-secure/database/model"
+	"github.com/LeonardJouve/pass-secure/database/models"
 	"github.com/LeonardJouve/pass-secure/status"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/utils"
@@ -19,7 +19,7 @@ const (
 	ACCESS_TOKEN = "access_token"
 )
 
-func CreateToken(c *fiber.Ctx, userId uint) (string, bool) {
+func CreateToken(c *fiber.Ctx, userId int64) (string, bool) {
 	privateKey, ok := getPrivateKey(c, ACCESS_TOKEN)
 	if !ok {
 		status.InternalServerError(c, nil)
@@ -29,7 +29,7 @@ func CreateToken(c *fiber.Ctx, userId uint) (string, bool) {
 	jwt.TimePrecision = time.Microsecond
 	claims := &jwt.RegisteredClaims{
 		ID:       utils.UUIDv4(),
-		Subject:  strconv.FormatUint(uint64(userId), 10),
+		Subject:  strconv.FormatInt(userId, 10),
 		IssuedAt: jwt.NewNumericDate(time.Now().UTC()),
 	}
 
@@ -73,7 +73,7 @@ func ValidateToken(c *fiber.Ctx, token string) (jwt.RegisteredClaims, bool) {
 }
 
 func IsExpired(c *fiber.Ctx, claims jwt.RegisteredClaims) bool {
-	var user model.User
+	var user models.User
 	err := database.Database.First(&user, claims.Subject).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		status.Unauthorized(c, nil)

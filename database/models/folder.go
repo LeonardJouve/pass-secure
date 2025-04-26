@@ -22,13 +22,13 @@ func SanitizeFolder(c *fiber.Ctx, folder *queries.Folder) (SanitizedFolder, bool
 		return SanitizedFolder{}, false
 	}
 
-	queries, ctx, commit, ok := db.BeginTransaction(c)
+	qtx, ctx, commit, ok := db.BeginTransaction(c)
 	if !ok {
 		return SanitizedFolder{}, false
 	}
 	defer commit()
 
-	userIds, err := queries.GetFolderUserIds(*ctx, folder.ID)
+	userIds, err := qtx.GetFolderUserIds(*ctx, folder.ID)
 	if err != nil {
 		return SanitizedFolder{}, false
 	}
@@ -37,7 +37,7 @@ func SanitizeFolder(c *fiber.Ctx, folder *queries.Folder) (SanitizedFolder, bool
 		ID:       folder.ID,
 		UserIds:  userIds,
 		OwnerID:  folder.OwnerID,
-		Name:     folder.Name.String,
+		Name:     folder.Name,
 		ParentID: folder.ParentID.Int64,
 	}, true
 }

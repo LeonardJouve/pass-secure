@@ -9,6 +9,10 @@ WHERE id = $1 LIMIT 1;
 SELECT * FROM users
 WHERE email = $1 LIMIT 1;
 
+-- name: GetUserByEmailOrUsername :one
+SELECT * FROM users
+WHERE email = $1 OR username = $2 LIMIT 1;
+
 -- name: CreateUser :one
 INSERT INTO users(email, username, password)
 VALUES ($1, $2, $3)

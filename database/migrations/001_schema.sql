@@ -1,13 +1,13 @@
 CREATE TABLE IF NOT EXISTS users (
     id   BIGSERIAL PRIMARY KEY,
     email VARCHAR(100) UNIQUE NOT NULL,
-    username VARCHAR(50) UNIQUE NOT NULL,
+    username VARCHAR(100) UNIQUE NOT NULL,
 	password VARCHAR(100) NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS folders (
     id BIGSERIAL PRIMARY KEY,
-    name VARCHAR(50),
+    name VARCHAR(100) NOT NULL,
     owner_id BIGINT NOT NULL,
     parent_id BIGINT NULL,
     CONSTRAINT folders_owner_fk FOREIGN KEY (owner_id) REFERENCES users(id),
@@ -16,8 +16,8 @@ CREATE TABLE IF NOT EXISTS folders (
 
 CREATE TABLE IF NOT EXISTS entries (
     id BIGSERIAL PRIMARY KEY,
-    name VARCHAR(50) NOT NULL,
-    password VARCHAR(100) NOT NULL,
+    name VARCHAR(100) NOT NULL,
+    password VARCHAR(512) NOT NULL,
     folder_id BIGINT NOT NULL,
     CONSTRAINT entries_folder_fk FOREIGN KEY (folder_id) REFERENCES folders(id)
 );

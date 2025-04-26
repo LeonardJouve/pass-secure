@@ -1,46 +1,43 @@
 package schemas
 
 import (
+	"database/sql"
 	"errors"
 
 	"github.com/LeonardJouve/pass-secure/database"
-	"github.com/LeonardJouve/pass-secure/database/models"
+	"github.com/LeonardJouve/pass-secure/database/queries"
 	"github.com/LeonardJouve/pass-secure/status"
 	"github.com/gofiber/fiber/v2"
 	"golang.org/x/crypto/bcrypt"
-	"gorm.io/gorm"
 )
 
 type RegisterInput struct {
-	Email           string `json:"email" validate:"required,email"`
-	Password        string `json:"password" validate:"required,min=8"`
-	PasswordConfirm string `json:"passwordConfirm" validate:"required,min=8"`
+	Email    string `json:"email" validate:"required,email"`
+	Username string `json:"username" validate:"required"`
+	Password string `json:"password" validate:"required,min=8"`
 }
 
-func GetRegisterUserInput(c *fiber.Ctx) (models.User, bool) {
+func GetRegisterUserInput(c *fiber.Ctx) (queries.CreateUserParams, bool) {
 	var input RegisterInput
 	if err := c.BodyParser(&input); err != nil {
 		status.BadRequest(c, err)
-		return models.User{}, false
-	}
-	if err := validate.Struct(input); err != nil {
-		status.BadRequest(c, err)
-		return models.User{}, false
+		return queries.CreateUserParams{}, false
 	}
 
-	if input.Password != input.PasswordConfirm {
-		status.BadRequest(c, errors.New("invalid password confirmation"))
-		return models.User{}, false
+	if err := validate.Struct(input); err != nil {
+		status.BadRequest(c, err)
+		return queries.CreateUserParams{}, false
 	}
 
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
 	if err != nil {
 		status.InternalServerError(c, nil)
-		return models.User{}, false
+		return queries.CreateUserParams{}, false
 	}
 
-	return models.User{
+	return queries.CreateUserParams{
 		Email:    input.Email,
+		Username: input.Username,
 		Password: string(hashedPassword),
 	}, true
 }
@@ -50,31 +47,39 @@ type LoginInput struct {
 	Password string `json:"password" validate:"required,min=8"`
 }
 
-func GetLoginUserInput(c *fiber.Ctx) (models.User, bool) {
+func GetLoginUserInput(c *fiber.Ctx) (queries.User, bool) {
+	qtx, ctx, commit, ok := database.BeginTransaction(c)
+	if !ok {
+		return queries.User{}, false
+	}
+	defer commit()
+
 	var input LoginInput
 	if err := c.BodyParser(&input); err != nil {
 		status.BadRequest(c, err)
-		return models.User{}, false
+		return queries.User{}, false
 	}
 	if err := validate.Struct(input); err != nil {
 		status.BadRequest(c, err)
-		return models.User{}, false
+		return queries.User{}, false
 	}
 
-	var user models.User
-	if err := database.Database.Where(&models.User{Email: input.Email}).First(&user).Error; err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
-		status.InternalServerError(c, nil)
-		return models.User{}, false
-	}
+	invalidCredentialsErr := errors.New("invalid credentials")
 
-	if user.ID == 0 {
-		status.Unauthorized(c, errors.New("invalid credentials"))
-		return models.User{}, false
+	user, err := qtx.GetUserByEmail(*ctx, input.Email)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			status.Unauthorized(c, invalidCredentialsErr)
+			return queries.User{}, false
+		} else {
+			status.InternalServerError(c, nil)
+			return queries.User{}, false
+		}
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(input.Password)); err != nil {
-		status.Unauthorized(c, errors.New("invalid credentials"))
-		return models.User{}, false
+		status.Unauthorized(c, invalidCredentialsErr)
+		return queries.User{}, false
 	}
 
 	return user, true

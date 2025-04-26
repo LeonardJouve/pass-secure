@@ -1,6 +1,8 @@
 package api
 
 import (
+	"database/sql"
+	"errors"
 	"strconv"
 	"strings"
 
@@ -14,6 +16,12 @@ import (
 )
 
 func Protect(c *fiber.Ctx) error {
+	qtx, ctx, commit, ok := database.BeginTransaction(c)
+	if !ok {
+		return nil
+	}
+	defer commit()
+
 	var accessToken string
 	authorization := c.Get("Authorization")
 	if strings.HasPrefix(authorization, "Bearer ") {
@@ -32,14 +40,13 @@ func Protect(c *fiber.Ctx) error {
 		return nil
 	}
 
-	userId, err := strconv.ParseUint(accessTokenClaims.Subject, 10, 64)
+	userId, err := strconv.ParseInt(accessTokenClaims.Subject, 10, 64)
 	if err != nil {
-		status.InternalServerError(c, nil)
-		return nil
+		return status.InternalServerError(c, nil)
 	}
 
-	var user models.User
-	if err := database.Database.First(&user, userId).Error; err != nil {
+	user, err := qtx.GetUser(*ctx, userId)
+	if err != nil {
 		return status.InternalServerError(c, nil)
 	}
 
@@ -49,29 +56,45 @@ func Protect(c *fiber.Ctx) error {
 }
 
 func Register(c *fiber.Ctx) error {
-	tx, ok := database.BeginTransaction(c)
+	qtx, ctx, commit, ok := database.BeginTransaction(c)
 	if !ok {
 		return nil
 	}
-	defer database.CommitTransactionIfSuccess(c, tx)
+	defer commit()
 
-	user, ok := schemas.GetRegisterUserInput(c)
+	input, ok := schemas.GetRegisterUserInput(c)
 	if !ok {
 		return nil
 	}
 
-	if ok := database.Execute(c, tx.Create(&user).Error); !ok {
-		return nil
+	_, err := qtx.GetUserByEmailOrUsername(*ctx, queries.GetUserByEmailOrUsernameParams{
+		Email:    input.Email,
+		Username: input.Username,
+	})
+	if err == nil {
+		return status.BadRequest(c, errors.New("user with same identifiers already exists"))
+	} else if !errors.Is(err, sql.ErrNoRows) {
+		return status.InternalServerError(c, nil)
 	}
 
-	folder := models.Folder{
+	user, err := qtx.CreateUser(*ctx, input)
+	if err != nil {
+		return status.InternalServerError(c, nil)
+	}
+
+	folder := queries.Folder{
 		Name: "",
 	}
-	if err := createFolder(c, tx, &folder, &user, nil); err != nil {
+	if err := createFolder(c, qtx, &folder, &user, nil); err != nil {
 		return nil
 	}
 
-	return status.Created(c, user.Sanitize())
+	sanitizedUser, ok := models.SanitizeUser(c, &user)
+	if !ok {
+		return nil
+	}
+
+	return status.Created(c, sanitizedUser)
 }
 
 func Login(c *fiber.Ctx) error {
