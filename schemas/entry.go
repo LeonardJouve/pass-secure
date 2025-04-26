@@ -1,7 +1,7 @@
-package schema
+package schemas
 
 import (
-	"github.com/LeonardJouve/pass-secure/database/model"
+	"github.com/LeonardJouve/pass-secure/database/models"
 	"github.com/LeonardJouve/pass-secure/status"
 	"github.com/gofiber/fiber/v2"
 )
@@ -12,18 +12,18 @@ type CreateEntryInput struct {
 	FolderID uint   `json:"folderId" validate:"required"`
 }
 
-func GetCreateEntryInput(c *fiber.Ctx) (model.Entry, bool) {
+func GetCreateEntryInput(c *fiber.Ctx) (models.Entry, bool) {
 	var input CreateEntryInput
 	if err := c.BodyParser(&input); err != nil {
 		status.BadRequest(c, err)
-		return model.Entry{}, false
+		return models.Entry{}, false
 	}
 	if err := validate.Struct(input); err != nil {
 		status.BadRequest(c, err)
-		return model.Entry{}, false
+		return models.Entry{}, false
 	}
 
-	return model.Entry{
+	return models.Entry{
 		Name:     input.Name,
 		Password: input.Password,
 		FolderID: input.FolderID,
@@ -36,7 +36,7 @@ type UpdateEntryInput struct {
 	FolderID uint   `json:"folderId"`
 }
 
-func GetUpdateEntryInput(c *fiber.Ctx, entry *model.Entry) bool {
+func GetUpdateEntryInput(c *fiber.Ctx, entry *models.Entry) bool {
 	var input UpdateEntryInput
 	if err := c.BodyParser(&input); err != nil {
 		status.BadRequest(c, err)

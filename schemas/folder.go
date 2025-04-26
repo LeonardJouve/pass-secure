@@ -1,10 +1,10 @@
-package schema
+package schemas
 
 import (
 	"fmt"
 
 	"github.com/LeonardJouve/pass-secure/database"
-	"github.com/LeonardJouve/pass-secure/database/model"
+	"github.com/LeonardJouve/pass-secure/database/models"
 	"github.com/LeonardJouve/pass-secure/status"
 	"github.com/gofiber/fiber/v2"
 )
@@ -14,18 +14,18 @@ type CreateFolderInput struct {
 	ParentID uint   `json:"parentId" validate:"required"`
 }
 
-func GetCreateFolderInput(c *fiber.Ctx) (model.Folder, bool) {
+func GetCreateFolderInput(c *fiber.Ctx) (models.Folder, bool) {
 	var input CreateFolderInput
 	if err := c.BodyParser(&input); err != nil {
 		status.BadRequest(c, err)
-		return model.Folder{}, false
+		return models.Folder{}, false
 	}
 	if err := validate.Struct(input); err != nil {
 		status.BadRequest(c, err)
-		return model.Folder{}, false
+		return models.Folder{}, false
 	}
 
-	return model.Folder{
+	return models.Folder{
 		Name:     input.Name,
 		ParentID: &input.ParentID,
 	}, true
@@ -36,7 +36,7 @@ type UpdateFolderInput struct {
 	ParentID uint   `json:"parentId"`
 }
 
-func GetUpdateFolderInput(c *fiber.Ctx, folder *model.Folder) bool {
+func GetUpdateFolderInput(c *fiber.Ctx, folder *models.Folder) bool {
 	var input UpdateFolderInput
 	if err := c.BodyParser(&input); err != nil {
 		status.BadRequest(c, err)
@@ -63,7 +63,7 @@ type InviteToFolderInput struct {
 	Emails []string `json:"emails"`
 }
 
-func GetInviteToFolderInput(c *fiber.Ctx, folder *model.Folder) bool {
+func GetInviteToFolderInput(c *fiber.Ctx, folder *models.Folder) bool {
 	var input InviteToFolderInput
 	if err := c.BodyParser(&input); err != nil {
 		status.BadRequest(c, err)
@@ -78,7 +78,7 @@ func GetInviteToFolderInput(c *fiber.Ctx, folder *model.Folder) bool {
 		input.Emails = append(input.Emails, input.Email)
 	}
 
-	var user model.User
+	var user models.User
 	for _, email := range input.Emails {
 		if err := database.Database.Where("email = ?", email).First(&user).Error; err != nil {
 			status.NotFound(c, fmt.Errorf("user \"%s\" could not be found", input.Email))

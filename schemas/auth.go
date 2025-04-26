@@ -1,10 +1,10 @@
-package schema
+package schemas
 
 import (
 	"errors"
 
 	"github.com/LeonardJouve/pass-secure/database"
-	"github.com/LeonardJouve/pass-secure/database/model"
+	"github.com/LeonardJouve/pass-secure/database/models"
 	"github.com/LeonardJouve/pass-secure/status"
 	"github.com/gofiber/fiber/v2"
 	"golang.org/x/crypto/bcrypt"
@@ -17,29 +17,29 @@ type RegisterInput struct {
 	PasswordConfirm string `json:"passwordConfirm" validate:"required,min=8"`
 }
 
-func GetRegisterUserInput(c *fiber.Ctx) (model.User, bool) {
+func GetRegisterUserInput(c *fiber.Ctx) (models.User, bool) {
 	var input RegisterInput
 	if err := c.BodyParser(&input); err != nil {
 		status.BadRequest(c, err)
-		return model.User{}, false
+		return models.User{}, false
 	}
 	if err := validate.Struct(input); err != nil {
 		status.BadRequest(c, err)
-		return model.User{}, false
+		return models.User{}, false
 	}
 
 	if input.Password != input.PasswordConfirm {
 		status.BadRequest(c, errors.New("invalid password confirmation"))
-		return model.User{}, false
+		return models.User{}, false
 	}
 
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
 	if err != nil {
 		status.InternalServerError(c, nil)
-		return model.User{}, false
+		return models.User{}, false
 	}
 
-	return model.User{
+	return models.User{
 		Email:    input.Email,
 		Password: string(hashedPassword),
 	}, true
@@ -50,31 +50,31 @@ type LoginInput struct {
 	Password string `json:"password" validate:"required,min=8"`
 }
 
-func GetLoginUserInput(c *fiber.Ctx) (model.User, bool) {
+func GetLoginUserInput(c *fiber.Ctx) (models.User, bool) {
 	var input LoginInput
 	if err := c.BodyParser(&input); err != nil {
 		status.BadRequest(c, err)
-		return model.User{}, false
+		return models.User{}, false
 	}
 	if err := validate.Struct(input); err != nil {
 		status.BadRequest(c, err)
-		return model.User{}, false
+		return models.User{}, false
 	}
 
-	var user model.User
-	if err := database.Database.Where(&model.User{Email: input.Email}).First(&user).Error; err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+	var user models.User
+	if err := database.Database.Where(&models.User{Email: input.Email}).First(&user).Error; err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		status.InternalServerError(c, nil)
-		return model.User{}, false
+		return models.User{}, false
 	}
 
 	if user.ID == 0 {
 		status.Unauthorized(c, errors.New("invalid credentials"))
-		return model.User{}, false
+		return models.User{}, false
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(input.Password)); err != nil {
 		status.Unauthorized(c, errors.New("invalid credentials"))
-		return model.User{}, false
+		return models.User{}, false
 	}
 
 	return user, true

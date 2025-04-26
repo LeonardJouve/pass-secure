@@ -29,3 +29,13 @@ WHERE id IN (
 -- name: GetFolderUserIds :many
 SELECT user_id AS id FROM user_folders
 WHERE folder_id = $1;
+
+-- name: DeleteUser :exec
+DELETE FROM users
+WHERE id = $1;
+
+-- name: UpdateUser :one
+UPDATE users
+SET email = $2, username = $3, password = $4
+WHERE id = $1
+RETURNING *;

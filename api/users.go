@@ -5,7 +5,7 @@ import (
 
 	"github.com/LeonardJouve/pass-secure/database"
 	"github.com/LeonardJouve/pass-secure/database/models"
-	"github.com/LeonardJouve/pass-secure/schema"
+	"github.com/LeonardJouve/pass-secure/schemas"
 	"github.com/LeonardJouve/pass-secure/status"
 	"github.com/gofiber/fiber/v2"
 )
@@ -61,7 +61,7 @@ func GetMe(c *fiber.Ctx) error {
 		return status.Unauthorized(c, nil)
 	}
 
-	sanitizedUser, ok := models.SanitizeUser(c, user)
+	sanitizedUser, ok := models.SanitizeUser(c, &user)
 	if !ok {
 		return nil
 	}
@@ -81,7 +81,7 @@ func RemoveMe(c *fiber.Ctx) error {
 		return nil
 	}
 
-	_, err := queries.DeleteUser(ctx, user.ID)
+	err := queries.DeleteUser(*ctx, user.ID)
 	if err != nil {
 		return status.InternalServerError(c, nil)
 	}
@@ -101,17 +101,17 @@ func UpdateMe(c *fiber.Ctx) error {
 		return nil
 	}
 
-	ok = schema.GetUpdateMeInput(c, &user)
+	input, ok := schemas.GetUpdateMeInput(c, user.ID)
 	if !ok {
 		return nil
 	}
 
-	newUser, err := queries.UpdateUser(ctx)
+	newUser, err := queries.UpdateUser(*ctx, input)
 	if err != nil {
 		return status.InternalServerError(c, nil)
 	}
 
-	sanitizedUser, ok := models.SanitizeUser(c, newUser)
+	sanitizedUser, ok := models.SanitizeUser(c, &newUser)
 	if !ok {
 		return nil
 	}

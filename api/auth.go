@@ -6,8 +6,9 @@ import (
 
 	"github.com/LeonardJouve/pass-secure/auth"
 	"github.com/LeonardJouve/pass-secure/database"
-	"github.com/LeonardJouve/pass-secure/database/model"
-	"github.com/LeonardJouve/pass-secure/schema"
+	"github.com/LeonardJouve/pass-secure/database/models"
+	"github.com/LeonardJouve/pass-secure/database/queries"
+	"github.com/LeonardJouve/pass-secure/schemas"
 	"github.com/LeonardJouve/pass-secure/status"
 	"github.com/gofiber/fiber/v2"
 )
@@ -37,7 +38,7 @@ func Protect(c *fiber.Ctx) error {
 		return nil
 	}
 
-	var user model.User
+	var user models.User
 	if err := database.Database.First(&user, userId).Error; err != nil {
 		return status.InternalServerError(c, nil)
 	}
@@ -54,7 +55,7 @@ func Register(c *fiber.Ctx) error {
 	}
 	defer database.CommitTransactionIfSuccess(c, tx)
 
-	user, ok := schema.GetRegisterUserInput(c)
+	user, ok := schemas.GetRegisterUserInput(c)
 	if !ok {
 		return nil
 	}
@@ -63,7 +64,7 @@ func Register(c *fiber.Ctx) error {
 		return nil
 	}
 
-	folder := model.Folder{
+	folder := models.Folder{
 		Name: "",
 	}
 	if err := createFolder(c, tx, &folder, &user, nil); err != nil {
@@ -74,7 +75,7 @@ func Register(c *fiber.Ctx) error {
 }
 
 func Login(c *fiber.Ctx) error {
-	user, ok := schema.GetLoginUserInput(c)
+	user, ok := schemas.GetLoginUserInput(c)
 	if !ok {
 		return nil
 	}
@@ -89,11 +90,11 @@ func Login(c *fiber.Ctx) error {
 	})
 }
 
-func getUser(c *fiber.Ctx) (model.User, bool) {
-	user, ok := c.Locals("user").(model.User)
+func getUser(c *fiber.Ctx) (queries.User, bool) {
+	user, ok := c.Locals("user").(queries.User)
 	if !ok {
 		status.InternalServerError(c, nil)
-		return model.User{}, false
+		return queries.User{}, false
 	}
 
 	return user, true
