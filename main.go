@@ -1,32 +1,83 @@
 package main
 
 import (
+	"database/sql"
+	"embed"
+	"errors"
 	"fmt"
 	"os"
-	"strconv"
 
-	"github.com/LeonardJouve/pass-secure/api"
 	"github.com/LeonardJouve/pass-secure/database"
-	"github.com/LeonardJouve/pass-secure/database/model"
-	"github.com/LeonardJouve/pass-secure/schema"
-	"gorm.io/driver/mysql"
+	"github.com/LeonardJouve/pass-secure/database/queries"
+	"github.com/LeonardJouve/pass-secure/env"
+	"github.com/LeonardJouve/pass-secure/status"
+	"github.com/gofiber/fiber/v2"
+)
+
+//go:embed database/migrations/*.sql
+var migrations embed.FS
+
+const (
+	MIGRATIONS_FOLDER = "database/migrations"
+	PORT              = 3000
 )
 
 func main() {
-	schema.Init()
-
-	connectionURL := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=True&loc=Local", os.Getenv("MYSQL_USER"), os.Getenv("MYSQL_PASSWORD"), os.Getenv("MYSQL_HOST"), os.Getenv("MYSQL_PORT"), os.Getenv("MYSQL_DATABASE"))
-	if err := database.Init(mysql.Open(connectionURL)); err != nil {
-		panic("Could not initialize database")
+	if os.Getenv("ENVIRONMENT") != "PRODUCTION" {
+		restore, err := env.Load(".env")
+		if err != nil {
+			panic(err)
+		}
+		defer restore()
 	}
 
-	model.Migrate()
-
-	port, err := strconv.ParseUint(os.Getenv("PORT"), 10, 16)
+	connectionURL := fmt.Sprintf("postgres://%s:%s@%s:%s/%s", os.Getenv("DATABASE_USER"), os.Getenv("DATABASE_PASSWORD"), os.Getenv("DATABASE_HOST"), os.Getenv("DATABASE_PORT"), os.Getenv("DATABASE_NAME"))
+	db, err := database.New(connectionURL)
 	if err != nil {
-		panic("Could not get port")
+		panic(err)
+	}
+	defer db.Close()
+
+	err = db.Migrate(migrations, MIGRATIONS_FOLDER)
+	if err != nil {
+		panic(err)
 	}
 
-	shutdown := api.Start(uint16(port))
-	defer shutdown()
+	app := fiber.New()
+	app.Get("/test", func(c *fiber.Ctx) error {
+		qtx, ctx, commit, ok := database.BeginTransaction(c)
+		if !ok {
+			return nil
+		}
+		defer commit()
+
+		usr, err := qtx.CreateUser(*ctx, queries.CreateUserParams{
+			Email:    "emaillllll",
+			Username: "usernameeeee",
+			Password: "password",
+		})
+		if err != nil {
+			return status.BadRequest(c, err)
+		}
+
+		user, err := qtx.GetUser(*ctx, usr.ID)
+		if err != nil {
+			if err == sql.ErrNoRows {
+				return status.BadRequest(c, errors.New("user not found"))
+			}
+			return status.InternalServerError(c, nil)
+		}
+
+		return status.Ok(c, fiber.Map{
+			"email":    user.Email,
+			"username": user.Username,
+			"password": user.Password,
+		})
+	})
+
+	app.Listen(fmt.Sprintf(":%d", PORT))
+	defer app.Shutdown()
+
+	// stop := api.Start(PORT)
+	// defer stop()
 }

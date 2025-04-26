@@ -4,39 +4,55 @@ import (
 	"errors"
 
 	"github.com/LeonardJouve/pass-secure/database"
-	"github.com/LeonardJouve/pass-secure/database/model"
+	"github.com/LeonardJouve/pass-secure/database/models"
 	"github.com/LeonardJouve/pass-secure/schema"
 	"github.com/LeonardJouve/pass-secure/status"
 	"github.com/gofiber/fiber/v2"
 )
 
 func GetUsers(c *fiber.Ctx) error {
-	users := []model.User{}
-	if database.Database.Find(&users).Error != nil {
-		status.InternalServerError(c, nil)
+	queries, ctx, commit, ok := database.BeginTransaction(c)
+	if !ok {
+		return nil
+	}
+	defer commit()
+
+	users, err := queries.GetUsers(*ctx)
+	if err != nil {
 		return status.InternalServerError(c, nil)
 	}
 
-	sanitizedUsers := []model.SanitizedUser{}
-	for _, user := range users {
-		sanitizedUsers = append(sanitizedUsers, *user.Sanitize())
+	sanitizedUsers, ok := models.SanitizeUsers(c, &users)
+	if !ok {
+		return nil
 	}
 
 	return status.Ok(c, &sanitizedUsers)
 }
 
 func GetUser(c *fiber.Ctx) error {
+	queries, ctx, commit, ok := database.BeginTransaction(c)
+	if !ok {
+		return nil
+	}
+	defer commit()
+
 	userId, err := c.ParamsInt("user_id")
 	if err != nil {
 		status.BadRequest(c, errors.New("invalid user_id"))
 	}
 
-	var user model.User
-	if err := database.Database.First(&user, userId).Error; err != nil {
+	user, err := queries.GetUser(*ctx, int64(userId))
+	if err != nil {
 		return status.NotFound(c, nil)
 	}
 
-	return status.Ok(c, user.Sanitize())
+	sanitizedUser, ok := models.SanitizeUser(c, &user)
+	if !ok {
+		return nil
+	}
+
+	return status.Ok(c, sanitizedUser)
 }
 
 func GetMe(c *fiber.Ctx) error {
@@ -45,34 +61,40 @@ func GetMe(c *fiber.Ctx) error {
 		return status.Unauthorized(c, nil)
 	}
 
-	return status.Ok(c, user.Sanitize())
-}
-
-func RemoveMe(c *fiber.Ctx) error {
-	tx, ok := database.BeginTransaction(c)
+	sanitizedUser, ok := models.SanitizeUser(c, user)
 	if !ok {
 		return nil
 	}
-	defer database.CommitTransactionIfSuccess(c, tx)
+
+	return status.Ok(c, sanitizedUser)
+}
+
+func RemoveMe(c *fiber.Ctx) error {
+	queries, ctx, commit, ok := database.BeginTransaction(c)
+	if !ok {
+		return nil
+	}
+	defer commit()
 
 	user, ok := getUser(c)
 	if !ok {
 		return nil
 	}
 
-	if ok := database.Execute(c, tx.Unscoped().Delete(&user).Error); !ok {
-		return nil
+	_, err := queries.DeleteUser(ctx, user.ID)
+	if err != nil {
+		return status.InternalServerError(c, nil)
 	}
 
 	return status.Ok(c, nil)
 }
 
 func UpdateMe(c *fiber.Ctx) error {
-	tx, ok := database.BeginTransaction(c)
+	queries, ctx, commit, ok := database.BeginTransaction(c)
 	if !ok {
 		return nil
 	}
-	defer database.CommitTransactionIfSuccess(c, tx)
+	defer commit()
 
 	user, ok := getUser(c)
 	if !ok {
@@ -84,9 +106,15 @@ func UpdateMe(c *fiber.Ctx) error {
 		return nil
 	}
 
-	if ok := database.Execute(c, tx.Updates(&user).Error); !ok {
+	newUser, err := queries.UpdateUser(ctx)
+	if err != nil {
+		return status.InternalServerError(c, nil)
+	}
+
+	sanitizedUser, ok := models.SanitizeUser(c, newUser)
+	if !ok {
 		return nil
 	}
 
-	return status.Ok(c, user.Sanitize())
+	return status.Ok(c, sanitizedUser)
 }
