@@ -87,6 +87,49 @@ WHERE entries.id = $1;
 DELETE FROM entries
 WHERE id = $1;
 
+-- name: GetUserRootFolder :one
+SELECT * FROM folders
+WHERE parent_id = NULL AND id IN (
+    SELECT folder_id FROM user_folders WHERE user_id = $1
+);
+
+-- name: CreateFolder :one
+WITH folder AS (
+    INSERT INTO folders(owner_id, name, parent_id)
+    VALUES($1, $2, $3)
+    RETURNING *
+),
+user_folder AS (
+    INSERT INTO user_folders(user_id, folder_id)
+    SELECT owner_id, id FROM folder
+)
+SELECT * FROM folders
+WHERE id = (
+    SELECT id FROM folder
+);
+
+-- name: UpdateFolder :one
+WITH folder AS (
+    UPDATE folders
+    SET name = $2, owner_id = $3, parent_id = $4
+    WHERE folders.id = $1
+    RETURNING *
+),
+user_folder AS (
+    INSERT INTO user_folders (user_id, folder_id)
+    SELECT owner_id, id FROM folder
+    ON CONFLICT (user_id, folder_id) DO NOTHING
+    RETURNING *
+)
+SELECT * FROM folders
+WHERE folders.id = (
+    SELECT id FROM folder
+);
+
+-- name: DeleteFolder :exec
+DELETE FROM folders
+WHERE id = $1;
+
 -- name: GetUserFolders :many
 SELECT * FROM folders
 WHERE id IN (
@@ -99,16 +142,7 @@ WHERE id IN (
     SELECT folder_id FROM user_folders WHERE user_id = $1
 ) AND id = sqlc.arg(folder_id);
 
--- name: GetFolderEntries :many
-SELECT * FROM entries
-WHERE id IN (
-    SELECT entry_id FROM folder_entries WHERE folder_entries.folder_id = $1
-);
-
 -- name: GetFolder :one
 SELECT * FROM folders
 WHERE id = $1;
 
--- name: GetFolderUserIds :many
-SELECT user_id AS id FROM user_folders
-WHERE folder_id = $1;

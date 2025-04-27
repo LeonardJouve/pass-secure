@@ -12,25 +12,20 @@ type SanitizedEntry struct {
 	FolderID int64  `json:"folderId"`
 }
 
-func SanitizeEntry(_ *fiber.Ctx, entry *queries.Entry) (SanitizedEntry, bool) {
+func SanitizeEntry(_ *fiber.Ctx, entry *queries.Entry) SanitizedEntry {
 	return SanitizedEntry{
 		ID:       entry.ID,
 		Name:     entry.Name,
 		Password: entry.Password,
 		FolderID: entry.FolderID,
-	}, true
+	}
 }
 
-func SanitizeEntries(c *fiber.Ctx, entries *[]queries.Entry) ([]SanitizedEntry, bool) {
-	sanitizedEntries := []SanitizedEntry{}
-	for _, entry := range *entries {
-		sanitizedEntry, ok := SanitizeEntry(c, &entry)
-		if !ok {
-			return []SanitizedEntry{}, false
-		}
-
-		sanitizedEntries = append(sanitizedEntries, sanitizedEntry)
+func SanitizeEntries(c *fiber.Ctx, entries *[]queries.Entry) []SanitizedEntry {
+	sanitizedEntries := make([]SanitizedEntry, len(*entries))
+	for i, entry := range *entries {
+		sanitizedEntries[i] = SanitizeEntry(c, &entry)
 	}
 
-	return sanitizedEntries, true
+	return sanitizedEntries
 }

@@ -2,7 +2,6 @@ package main
 
 import (
 	"database/sql"
-	"embed"
 	"errors"
 	"fmt"
 	"os"
@@ -15,13 +14,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-//go:embed database/migrations/*.sql
-var migrations embed.FS
-
-const (
-	MIGRATIONS_FOLDER = "database/migrations"
-	PORT              = 3000
-)
+const PORT = 3000
 
 func main() {
 	if os.Getenv("ENVIRONMENT") != "PRODUCTION" {
@@ -39,7 +32,7 @@ func main() {
 	}
 	defer db.Close()
 
-	err = db.Migrate(migrations, MIGRATIONS_FOLDER)
+	err = db.Migrate()
 	if err != nil {
 		panic(err)
 	}

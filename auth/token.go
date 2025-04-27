@@ -1,18 +1,17 @@
 package auth
 
 import (
+	"database/sql"
 	"errors"
 	"fmt"
 	"strconv"
 	"time"
 
 	"github.com/LeonardJouve/pass-secure/database"
-	"github.com/LeonardJouve/pass-secure/database/models"
 	"github.com/LeonardJouve/pass-secure/status"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/utils"
 	"github.com/golang-jwt/jwt/v5"
-	"gorm.io/gorm"
 )
 
 const (
@@ -73,14 +72,27 @@ func ValidateToken(c *fiber.Ctx, token string) (jwt.RegisteredClaims, bool) {
 }
 
 func IsExpired(c *fiber.Ctx, claims jwt.RegisteredClaims) bool {
-	var user models.User
-	err := database.Database.First(&user, claims.Subject).Error
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		status.Unauthorized(c, nil)
+	qtx, ctx, commit, ok := database.BeginTransaction(c)
+	if !ok {
 		return true
-	} else if err != nil {
+	}
+	defer commit()
+
+	userId, err := strconv.ParseInt(claims.Subject, 10, 64)
+	if err != nil {
 		status.InternalServerError(c, nil)
 		return true
+	}
+
+	_, err = qtx.GetUser(*ctx, userId)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			status.Unauthorized(c, nil)
+			return true
+		} else {
+			status.InternalServerError(c, nil)
+			return true
+		}
 	}
 
 	if claims.ExpiresAt != nil && claims.ExpiresAt.Before(time.Now().UTC()) {

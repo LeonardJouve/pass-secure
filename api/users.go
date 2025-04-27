@@ -22,12 +22,7 @@ func GetUsers(c *fiber.Ctx) error {
 		return status.InternalServerError(c, nil)
 	}
 
-	sanitizedUsers, ok := models.SanitizeUsers(c, &users)
-	if !ok {
-		return nil
-	}
-
-	return status.Ok(c, &sanitizedUsers)
+	return status.Ok(c, models.SanitizeUsers(c, &users))
 }
 
 func GetUser(c *fiber.Ctx) error {
@@ -47,12 +42,7 @@ func GetUser(c *fiber.Ctx) error {
 		return status.NotFound(c, nil)
 	}
 
-	sanitizedUser, ok := models.SanitizeUser(c, &user)
-	if !ok {
-		return nil
-	}
-
-	return status.Ok(c, sanitizedUser)
+	return status.Ok(c, models.SanitizeUser(c, &user))
 }
 
 func GetMe(c *fiber.Ctx) error {
@@ -61,12 +51,7 @@ func GetMe(c *fiber.Ctx) error {
 		return status.Unauthorized(c, nil)
 	}
 
-	sanitizedUser, ok := models.SanitizeUser(c, &user)
-	if !ok {
-		return nil
-	}
-
-	return status.Ok(c, sanitizedUser)
+	return status.Ok(c, models.SanitizeUser(c, &user))
 }
 
 func RemoveMe(c *fiber.Ctx) error {
@@ -111,10 +96,5 @@ func UpdateMe(c *fiber.Ctx) error {
 		return status.InternalServerError(c, nil)
 	}
 
-	sanitizedUser, ok := models.SanitizeUser(c, &newUser)
-	if !ok {
-		return nil
-	}
-
-	return status.Ok(c, sanitizedUser)
+	return status.Ok(c, models.SanitizeUser(c, &newUser))
 }

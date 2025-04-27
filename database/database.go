@@ -19,6 +19,11 @@ type Database struct {
 	ctx  context.Context
 }
 
+const MIGRATIONS_FOLDER = "database/migrations"
+
+//go:embed migrations/*.sql
+var migrations embed.FS
+
 var db *Database
 
 func New(connectionURL string) (*Database, error) {
@@ -63,7 +68,7 @@ func (d *Database) Close() {
 	d.conn.Close(d.ctx)
 }
 
-func (d *Database) Migrate(migrations embed.FS, migrationsFolder string) error {
+func (d *Database) Migrate() error {
 	if d.conn.IsClosed() {
 		return errors.New("database connection closed")
 	}
@@ -75,7 +80,7 @@ func (d *Database) Migrate(migrations embed.FS, migrationsFolder string) error {
 		return err
 	}
 
-	migrationsPath := path.Join(path.Dir(executable), migrationsFolder)
+	migrationsPath := path.Join(path.Dir(executable), MIGRATIONS_FOLDER)
 
 	migrationEntries, err := migrations.ReadDir(migrationsPath)
 	if err != nil {

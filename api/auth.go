@@ -82,19 +82,16 @@ func Register(c *fiber.Ctx) error {
 		return status.InternalServerError(c, nil)
 	}
 
-	folder := queries.Folder{
-		Name: "",
+	folder := queries.CreateFolderParams{
+		Name:     "",
+		OwnerID:  user.ID,
+		ParentID: nil,
 	}
-	if err := createFolder(c, qtx, &folder, &user, nil); err != nil {
+	if _, ok := createFolder(c, &folder, &user, nil); !ok {
 		return nil
 	}
 
-	sanitizedUser, ok := models.SanitizeUser(c, &user)
-	if !ok {
-		return nil
-	}
-
-	return status.Created(c, sanitizedUser)
+	return status.Created(c, models.SanitizeUser(c, &user))
 }
 
 func Login(c *fiber.Ctx) error {

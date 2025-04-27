@@ -43,12 +43,7 @@ func CreateEntry(c *fiber.Ctx) error {
 		return status.InternalServerError(c, nil)
 	}
 
-	sanitizedEntry, ok := models.SanitizeEntry(c, &entry)
-	if !ok {
-		return nil
-	}
-
-	return status.Created(c, sanitizedEntry)
+	return status.Created(c, models.SanitizeEntry(c, &entry))
 }
 
 func GetEntries(c *fiber.Ctx) error {
@@ -57,12 +52,7 @@ func GetEntries(c *fiber.Ctx) error {
 		return nil
 	}
 
-	sanitizedEntries, ok := models.SanitizeEntries(c, &entries)
-	if !ok {
-		return nil
-	}
-
-	return status.Ok(c, sanitizedEntries)
+	return status.Ok(c, models.SanitizeEntries(c, &entries))
 }
 
 func GetEntry(c *fiber.Ctx) error {
@@ -76,12 +66,7 @@ func GetEntry(c *fiber.Ctx) error {
 		return nil
 	}
 
-	sanitiziedEntry, ok := models.SanitizeEntry(c, &entry)
-	if !ok {
-		return nil
-	}
-
-	return status.Ok(c, sanitiziedEntry)
+	return status.Ok(c, models.SanitizeEntry(c, &entry))
 }
 
 func UpdateEntry(c *fiber.Ctx) error {
@@ -129,12 +114,7 @@ func UpdateEntry(c *fiber.Ctx) error {
 		return status.InternalServerError(c, nil)
 	}
 
-	sanitiziedEntry, ok := models.SanitizeEntry(c, &newEntry)
-	if !ok {
-		return nil
-	}
-
-	return status.Ok(c, sanitiziedEntry)
+	return status.Ok(c, models.SanitizeEntry(c, &newEntry))
 }
 
 func RemoveEntry(c *fiber.Ctx) error {

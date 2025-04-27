@@ -10,23 +10,18 @@ type SanitizedUser struct {
 	Email string `json:"email"`
 }
 
-func SanitizeUser(_ *fiber.Ctx, user *queries.User) (SanitizedUser, bool) {
+func SanitizeUser(_ *fiber.Ctx, user *queries.User) SanitizedUser {
 	return SanitizedUser{
 		ID:    user.ID,
 		Email: user.Email,
-	}, true
+	}
 }
 
-func SanitizeUsers(c *fiber.Ctx, users *[]queries.User) ([]SanitizedUser, bool) {
-	sanitizedUsers := []SanitizedUser{}
-	for _, user := range *users {
-		sanitizedUser, ok := SanitizeUser(c, &user)
-		if !ok {
-			return []SanitizedUser{}, false
-		}
-
-		sanitizedUsers = append(sanitizedUsers, sanitizedUser)
+func SanitizeUsers(c *fiber.Ctx, users *[]queries.User) []SanitizedUser {
+	sanitizedUsers := make([]SanitizedUser, len(*users))
+	for i, user := range *users {
+		sanitizedUsers[i] = SanitizeUser(c, &user)
 	}
 
-	return sanitizedUsers, true
+	return sanitizedUsers
 }
