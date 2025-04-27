@@ -20,3 +20,17 @@ func SanitizeEntry(_ *fiber.Ctx, entry *queries.Entry) (SanitizedEntry, bool) {
 		FolderID: entry.FolderID,
 	}, true
 }
+
+func SanitizeEntries(c *fiber.Ctx, entries *[]queries.Entry) ([]SanitizedEntry, bool) {
+	sanitizedEntries := []SanitizedEntry{}
+	for _, entry := range *entries {
+		sanitizedEntry, ok := SanitizeEntry(c, &entry)
+		if !ok {
+			return []SanitizedEntry{}, false
+		}
+
+		sanitizedEntries = append(sanitizedEntries, sanitizedEntry)
+	}
+
+	return sanitizedEntries, true
+}

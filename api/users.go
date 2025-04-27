@@ -11,13 +11,13 @@ import (
 )
 
 func GetUsers(c *fiber.Ctx) error {
-	queries, ctx, commit, ok := database.BeginTransaction(c)
+	qtx, ctx, commit, ok := database.BeginTransaction(c)
 	if !ok {
 		return nil
 	}
 	defer commit()
 
-	users, err := queries.GetUsers(*ctx)
+	users, err := qtx.GetUsers(*ctx)
 	if err != nil {
 		return status.InternalServerError(c, nil)
 	}
@@ -31,7 +31,7 @@ func GetUsers(c *fiber.Ctx) error {
 }
 
 func GetUser(c *fiber.Ctx) error {
-	queries, ctx, commit, ok := database.BeginTransaction(c)
+	qtx, ctx, commit, ok := database.BeginTransaction(c)
 	if !ok {
 		return nil
 	}
@@ -39,10 +39,10 @@ func GetUser(c *fiber.Ctx) error {
 
 	userId, err := c.ParamsInt("user_id")
 	if err != nil {
-		status.BadRequest(c, errors.New("invalid user_id"))
+		return status.BadRequest(c, errors.New("invalid user_id"))
 	}
 
-	user, err := queries.GetUser(*ctx, int64(userId))
+	user, err := qtx.GetUser(*ctx, int64(userId))
 	if err != nil {
 		return status.NotFound(c, nil)
 	}
@@ -70,7 +70,7 @@ func GetMe(c *fiber.Ctx) error {
 }
 
 func RemoveMe(c *fiber.Ctx) error {
-	queries, ctx, commit, ok := database.BeginTransaction(c)
+	qtx, ctx, commit, ok := database.BeginTransaction(c)
 	if !ok {
 		return nil
 	}
@@ -81,7 +81,7 @@ func RemoveMe(c *fiber.Ctx) error {
 		return nil
 	}
 
-	err := queries.DeleteUser(*ctx, user.ID)
+	err := qtx.DeleteUser(*ctx, user.ID)
 	if err != nil {
 		return status.InternalServerError(c, nil)
 	}
@@ -90,7 +90,7 @@ func RemoveMe(c *fiber.Ctx) error {
 }
 
 func UpdateMe(c *fiber.Ctx) error {
-	queries, ctx, commit, ok := database.BeginTransaction(c)
+	qtx, ctx, commit, ok := database.BeginTransaction(c)
 	if !ok {
 		return nil
 	}
@@ -106,7 +106,7 @@ func UpdateMe(c *fiber.Ctx) error {
 		return nil
 	}
 
-	newUser, err := queries.UpdateUser(*ctx, input)
+	newUser, err := qtx.UpdateUser(*ctx, input)
 	if err != nil {
 		return status.InternalServerError(c, nil)
 	}

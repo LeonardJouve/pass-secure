@@ -1,23 +1,25 @@
 package api
 
 import (
+	"database/sql"
 	"errors"
 
 	"github.com/LeonardJouve/pass-secure/database"
-	"github.com/LeonardJouve/pass-secure/database/model"
-	"github.com/LeonardJouve/pass-secure/schema"
+	"github.com/LeonardJouve/pass-secure/database/models"
+	"github.com/LeonardJouve/pass-secure/database/queries"
+	"github.com/LeonardJouve/pass-secure/schemas"
 	"github.com/LeonardJouve/pass-secure/status"
 	"github.com/gofiber/fiber/v2"
 )
 
 func CreateEntry(c *fiber.Ctx) error {
-	tx, ok := database.BeginTransaction(c)
+	qtx, ctx, commit, ok := database.BeginTransaction(c)
 	if !ok {
 		return nil
 	}
-	defer database.CommitTransactionIfSuccess(c, tx)
+	defer commit()
 
-	entry, ok := schema.GetCreateEntryInput(c)
+	input, ok := schemas.GetCreateEntryInput(c)
 	if !ok {
 		return nil
 	}
@@ -27,7 +29,7 @@ func CreateEntry(c *fiber.Ctx) error {
 		return nil
 	}
 
-	parentFolder, ok := getUserFolder(c, entry.FolderID)
+	parentFolder, ok := getUserFolder(c, input.FolderID)
 	if !ok {
 		return nil
 	}
@@ -36,15 +38,17 @@ func CreateEntry(c *fiber.Ctx) error {
 		return status.Unauthorized(c, nil)
 	}
 
-	if ok := database.Execute(c, tx.Create(&entry).Error); !ok {
+	entry, err := qtx.CreateEntry(*ctx, input)
+	if err != nil {
+		return status.InternalServerError(c, nil)
+	}
+
+	sanitizedEntry, ok := models.SanitizeEntry(c, &entry)
+	if !ok {
 		return nil
 	}
 
-	if ok := database.Execute(c, tx.Model(&entry).Association("Folder").Replace(&parentFolder)); !ok {
-		return nil
-	}
-
-	return status.Created(c, entry.Sanitize())
+	return status.Created(c, sanitizedEntry)
 }
 
 func GetEntries(c *fiber.Ctx) error {
@@ -53,41 +57,46 @@ func GetEntries(c *fiber.Ctx) error {
 		return nil
 	}
 
-	sanitizedEntries := []model.SanitizedEntry{}
-	for _, entry := range entries {
-		sanitizedEntries = append(sanitizedEntries, *entry.Sanitize())
+	sanitizedEntries, ok := models.SanitizeEntries(c, &entries)
+	if !ok {
+		return nil
 	}
 
-	return status.Ok(c, &sanitizedEntries)
+	return status.Ok(c, sanitizedEntries)
 }
 
 func GetEntry(c *fiber.Ctx) error {
 	entryId, err := c.ParamsInt("entry_id")
 	if err != nil {
-		status.BadRequest(c, errors.New("invalid entry_id"))
+		return status.BadRequest(c, errors.New("invalid entry_id"))
 	}
 
-	entry, ok := getUserEntry(c, uint(entryId))
+	entry, ok := getUserEntry(c, int64(entryId))
 	if !ok {
 		return nil
 	}
 
-	return status.Ok(c, entry.Sanitize())
+	sanitiziedEntry, ok := models.SanitizeEntry(c, &entry)
+	if !ok {
+		return nil
+	}
+
+	return status.Ok(c, sanitiziedEntry)
 }
 
 func UpdateEntry(c *fiber.Ctx) error {
-	tx, ok := database.BeginTransaction(c)
+	qtx, ctx, commit, ok := database.BeginTransaction(c)
 	if !ok {
 		return nil
 	}
-	defer database.CommitTransactionIfSuccess(c, tx)
+	defer commit()
 
 	entryId, err := c.ParamsInt("entry_id")
 	if err != nil {
-		status.BadRequest(c, errors.New("invalid entry_id"))
+		return status.BadRequest(c, errors.New("invalid entry_id"))
 	}
 
-	entry, ok := getUserEntry(c, uint(entryId))
+	entry, ok := getUserEntry(c, int64(entryId))
 	if !ok {
 		return nil
 	}
@@ -97,29 +106,50 @@ func UpdateEntry(c *fiber.Ctx) error {
 		return nil
 	}
 
-	if entry.Folder.OwnerID != user.ID {
+	parentFolder, err := qtx.GetFolder(*ctx, entry.FolderID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return status.BadRequest(c, errors.New("invalid folder_id"))
+		} else {
+			return status.InternalServerError(c, nil)
+		}
+	}
+
+	if parentFolder.OwnerID != user.ID {
 		return status.Unauthorized(c, nil)
 	}
 
-	ok = schema.GetUpdateEntryInput(c, &entry)
+	input, ok := schemas.GetUpdateEntryInput(c)
 	if !ok {
 		return nil
 	}
 
-	if ok := database.Execute(c, tx.Updates(&entry).Error); !ok {
+	newEntry, err := qtx.UpdateEntry(*ctx, input)
+	if err != nil {
+		return status.InternalServerError(c, nil)
+	}
+
+	sanitiziedEntry, ok := models.SanitizeEntry(c, &newEntry)
+	if !ok {
 		return nil
 	}
 
-	return status.Ok(c, entry.Sanitize())
+	return status.Ok(c, sanitiziedEntry)
 }
 
 func RemoveEntry(c *fiber.Ctx) error {
+	qtx, ctx, commit, ok := database.BeginTransaction(c)
+	if !ok {
+		return nil
+	}
+	defer commit()
+
 	entryId, err := c.ParamsInt("entry_id")
 	if err != nil {
-		status.BadRequest(c, errors.New("invalid entry_id"))
+		return status.BadRequest(c, errors.New("invalid entry_id"))
 	}
 
-	entry, ok := getUserEntry(c, uint(entryId))
+	entry, ok := getUserEntry(c, int64(entryId))
 	if !ok {
 		return nil
 	}
@@ -129,54 +159,72 @@ func RemoveEntry(c *fiber.Ctx) error {
 		return nil
 	}
 
-	if entry.Folder.OwnerID != user.ID {
+	parentFolder, err := qtx.GetFolder(*ctx, entry.FolderID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return status.BadRequest(c, errors.New("invalid folder_id"))
+		} else {
+			return status.InternalServerError(c, nil)
+		}
+	}
+
+	if parentFolder.OwnerID != user.ID {
 		return status.Unauthorized(c, nil)
 	}
 
-	if database.Database.Delete(&entry).Error != nil {
+	err = qtx.DeleteEntry(*ctx, entry.ID)
+	if err != nil {
 		return status.InternalServerError(c, nil)
 	}
 
 	return status.Ok(c, nil)
 }
 
-func getUserEntries(c *fiber.Ctx) ([]model.Entry, bool) {
-	folders, ok := getUserFolders(c)
+func getUserEntries(c *fiber.Ctx) ([]queries.Entry, bool) {
+	qtx, ctx, commit, ok := database.BeginTransaction(c)
 	if !ok {
-		return []model.Entry{}, false
+		return []queries.Entry{}, false
+	}
+	defer commit()
+
+	user, ok := getUser(c)
+	if !ok {
+		return []queries.Entry{}, false
 	}
 
-	entries := []model.Entry{}
-	for _, folder := range folders {
-		for _, entry := range folder.Entries {
-			if err := database.Database.Model(&entry).Association("Folder").Find(&entry.Folder); err != nil {
-				status.InternalServerError(c, nil)
-				return []model.Entry{}, false
-			}
-			entries = append(entries, entry)
-		}
+	entries, err := qtx.GetUserEntries(*ctx, user.ID)
+	if err != nil {
+		status.InternalServerError(c, nil)
+		return []queries.Entry{}, false
 	}
 
 	return entries, true
 }
 
-func getUserEntry(c *fiber.Ctx, entryId uint) (model.Entry, bool) {
-	entries, ok := getUserEntries(c)
+func getUserEntry(c *fiber.Ctx, entryId int64) (queries.Entry, bool) {
+	qtx, ctx, commit, ok := database.BeginTransaction(c)
 	if !ok {
-		return model.Entry{}, false
+		return queries.Entry{}, false
+	}
+	defer commit()
+
+	user, ok := getUser(c)
+	if !ok {
+		return queries.Entry{}, false
 	}
 
-	var entry model.Entry
-	for _, e := range entries {
-		if e.ID == entryId {
-			entry = e
-			break
+	entry, err := qtx.GetUserEntry(*ctx, queries.GetUserEntryParams{
+		UserID:  user.ID,
+		EntryID: entryId,
+	})
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			status.NotFound(c, nil)
+		} else {
+			status.InternalServerError(c, nil)
 		}
-	}
 
-	if entry.ID == 0 {
-		status.NotFound(c, nil)
-		return model.Entry{}, false
+		return queries.Entry{}, false
 	}
 
 	return entry, true

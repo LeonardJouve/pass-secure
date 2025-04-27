@@ -1,63 +1,77 @@
 package schemas
 
 import (
-	"github.com/LeonardJouve/pass-secure/database/models"
+	"github.com/LeonardJouve/pass-secure/database/queries"
 	"github.com/LeonardJouve/pass-secure/status"
 	"github.com/gofiber/fiber/v2"
 )
 
 type CreateEntryInput struct {
 	Name     string `json:"name" validate:"required"`
+	Username string `json:"username" validate:"required"`
 	Password string `json:"password" validate:"required"`
-	FolderID uint   `json:"folderId" validate:"required"`
+	Url      string `json:"url" validate:"omitempty"`
+	FolderID int64  `json:"folderId" validate:"required"`
 }
 
-func GetCreateEntryInput(c *fiber.Ctx) (models.Entry, bool) {
+func GetCreateEntryInput(c *fiber.Ctx) (queries.CreateEntryParams, bool) {
 	var input CreateEntryInput
 	if err := c.BodyParser(&input); err != nil {
 		status.BadRequest(c, err)
-		return models.Entry{}, false
-	}
-	if err := validate.Struct(input); err != nil {
-		status.BadRequest(c, err)
-		return models.Entry{}, false
+		return queries.CreateEntryParams{}, false
 	}
 
-	return models.Entry{
+	if err := validate.Struct(input); err != nil {
+		status.BadRequest(c, err)
+		return queries.CreateEntryParams{}, false
+	}
+
+	result := queries.CreateEntryParams{
 		Name:     input.Name,
+		Username: input.Username,
 		Password: input.Password,
+		Url:      &input.Url,
 		FolderID: input.FolderID,
-	}, true
+	}
+
+	if len(input.Url) == 0 {
+		result.Url = nil
+	}
+
+	return result, true
 }
 
 type UpdateEntryInput struct {
-	Name     string `json:"name"`
-	Password string `json:"password"`
-	FolderID uint   `json:"folderId"`
+	Name     string `json:"name" validate:"required"`
+	Username string `json:"username" validate:"required"`
+	Password string `json:"password" validate:"required"`
+	Url      string `json:"url" validate:"omitempty"`
+	FolderID int64  `json:"folderId" validate:"required"`
 }
 
-func GetUpdateEntryInput(c *fiber.Ctx, entry *models.Entry) bool {
+func GetUpdateEntryInput(c *fiber.Ctx) (queries.UpdateEntryParams, bool) {
 	var input UpdateEntryInput
 	if err := c.BodyParser(&input); err != nil {
 		status.BadRequest(c, err)
-		return false
+		return queries.UpdateEntryParams{}, false
 	}
+
 	if err := validate.Struct(input); err != nil {
 		status.BadRequest(c, err)
-		return false
+		return queries.UpdateEntryParams{}, false
 	}
 
-	if len(input.Name) > 0 {
-		entry.Name = input.Name
+	result := queries.UpdateEntryParams{
+		Name:     input.Name,
+		Username: input.Username,
+		Password: input.Password,
+		Url:      &input.Url,
+		FolderID: input.FolderID,
 	}
 
-	if len(input.Password) > 0 {
-		entry.Password = input.Password
+	if len(input.Url) == 0 {
+		result.Url = nil
 	}
 
-	if input.FolderID != 0 {
-		entry.FolderID = input.FolderID
-	}
-
-	return true
+	return result, true
 }

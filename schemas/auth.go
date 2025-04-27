@@ -43,8 +43,8 @@ func GetRegisterUserInput(c *fiber.Ctx) (queries.CreateUserParams, bool) {
 }
 
 type LoginInput struct {
-	Email    string `json:"email" validate:"required,email"`
-	Password string `json:"password" validate:"required,min=8"`
+	Email    string `json:"email" validate:"required"`
+	Password string `json:"password" validate:"required"`
 }
 
 func GetLoginUserInput(c *fiber.Ctx) (queries.User, bool) {

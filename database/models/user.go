@@ -2,7 +2,6 @@ package models
 
 import (
 	"github.com/LeonardJouve/pass-secure/database/queries"
-	"github.com/LeonardJouve/pass-secure/status"
 	"github.com/gofiber/fiber/v2"
 )
 
@@ -23,7 +22,6 @@ func SanitizeUsers(c *fiber.Ctx, users *[]queries.User) ([]SanitizedUser, bool) 
 	for _, user := range *users {
 		sanitizedUser, ok := SanitizeUser(c, &user)
 		if !ok {
-			status.InternalServerError(c, nil)
 			return []SanitizedUser{}, false
 		}
 

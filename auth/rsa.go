@@ -5,7 +5,7 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
-	"log"
+	"fmt"
 	"os"
 	"path/filepath"
 
@@ -107,7 +107,7 @@ func generateKeys(name string) ([]byte, []byte, error) {
 		return nil, nil, err
 	}
 
-	log.Println("GENERATING RSA CERTIFICATES")
+	fmt.Println("GENERATING RSA CERTIFICATES")
 
 	return publicPEM, privatePEM, nil
 }

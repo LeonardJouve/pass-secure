@@ -1,11 +1,13 @@
 package api
 
 import (
+	"database/sql"
 	"errors"
 
 	"github.com/LeonardJouve/pass-secure/database"
-	"github.com/LeonardJouve/pass-secure/database/model"
-	"github.com/LeonardJouve/pass-secure/schema"
+	"github.com/LeonardJouve/pass-secure/database/models"
+	"github.com/LeonardJouve/pass-secure/database/queries"
+	"github.com/LeonardJouve/pass-secure/schemas"
 	"github.com/LeonardJouve/pass-secure/status"
 	"github.com/gofiber/fiber/v2"
 	"gorm.io/gorm"
@@ -18,7 +20,7 @@ func CreateFolder(c *fiber.Ctx) error {
 	}
 	defer database.CommitTransactionIfSuccess(c, tx)
 
-	folder, ok := schema.GetCreateFolderInput(c)
+	folder, ok := schemas.GetCreateFolderInput(c)
 	if !ok {
 		return nil
 	}
@@ -49,7 +51,7 @@ func UpdateFolder(c *fiber.Ctx) error {
 
 	folderId, err := c.ParamsInt("folder_id")
 	if err != nil {
-		status.BadRequest(c, errors.New("invalid folder_id"))
+		return status.BadRequest(c, errors.New("invalid folder_id"))
 	}
 
 	folder, ok := getUserFolder(c, uint(folderId))
@@ -66,7 +68,7 @@ func UpdateFolder(c *fiber.Ctx) error {
 		return status.Unauthorized(c, nil)
 	}
 
-	ok = schema.GetUpdateFolderInput(c, &folder)
+	ok = schemas.GetUpdateFolderInput(c, &folder)
 	if !ok {
 		return nil
 	}
@@ -84,7 +86,7 @@ func GetFolders(c *fiber.Ctx) error {
 		return nil
 	}
 
-	sanitizedFolders := []model.SanitizedFolder{}
+	sanitizedFolders := []models.SanitizedFolder{}
 	for _, folder := range folders {
 		sanitizedFolders = append(sanitizedFolders, *folder.Sanitize())
 	}
@@ -95,7 +97,7 @@ func GetFolders(c *fiber.Ctx) error {
 func GetFolder(c *fiber.Ctx) error {
 	folderId, err := c.ParamsInt("folder_id")
 	if err != nil {
-		status.BadRequest(c, errors.New("invalid folder_id"))
+		return status.BadRequest(c, errors.New("invalid folder_id"))
 	}
 
 	folder, ok := getUserFolder(c, uint(folderId))
@@ -115,7 +117,7 @@ func RemoveFolder(c *fiber.Ctx) error {
 
 	folderId, err := c.ParamsInt("folder_id")
 	if err != nil {
-		status.BadRequest(c, errors.New("invalid folder_id"))
+		return status.BadRequest(c, errors.New("invalid folder_id"))
 	}
 
 	folder, ok := getUserFolder(c, uint(folderId))
@@ -152,7 +154,7 @@ func InviteToFolder(c *fiber.Ctx) error {
 
 	folderId, err := c.ParamsInt("folder_id")
 	if err != nil {
-		status.BadRequest(c, errors.New("invalid folder_id"))
+		return status.BadRequest(c, errors.New("invalid folder_id"))
 	}
 
 	folder, ok := getUserFolder(c, uint(folderId))
@@ -173,7 +175,7 @@ func InviteToFolder(c *fiber.Ctx) error {
 		return status.Unauthorized(c, nil)
 	}
 
-	if ok := schema.GetInviteToFolderInput(c, &folder); !ok {
+	if ok := schemas.GetInviteToFolderInput(c, &folder); !ok {
 		return nil
 	}
 
@@ -193,7 +195,7 @@ func RemoveInviteToFolder(c *fiber.Ctx) error {
 
 	folderId, err := c.ParamsInt("folder_id")
 	if err != nil {
-		status.BadRequest(c, errors.New("invalid folder_id"))
+		return status.BadRequest(c, errors.New("invalid folder_id"))
 	}
 
 	folder, ok := getUserFolder(c, uint(folderId))
@@ -212,7 +214,7 @@ func RemoveInviteToFolder(c *fiber.Ctx) error {
 
 	inviteUserId, err := c.ParamsInt("user_id")
 	if err != nil {
-		status.BadRequest(c, errors.New("invalid user_id"))
+		return status.BadRequest(c, errors.New("invalid user_id"))
 	}
 
 	found := false
@@ -225,7 +227,7 @@ func RemoveInviteToFolder(c *fiber.Ctx) error {
 		status.BadRequest(c, errors.New("invalid user_id"))
 	}
 
-	var inviteUser model.User
+	var inviteUser models.User
 	if ok := database.Execute(c, tx.First(&inviteUser, inviteUserId).Error); !ok {
 		return nil
 	}
@@ -237,49 +239,59 @@ func RemoveInviteToFolder(c *fiber.Ctx) error {
 	return status.Ok(c, nil)
 }
 
-func getUserFolders(c *fiber.Ctx) ([]model.Folder, bool) {
+func getUserFolders(c *fiber.Ctx) ([]queries.Folder, bool) {
+	qtx, ctx, commit, ok := database.BeginTransaction(c)
+	if !ok {
+		return []queries.Folder{}, false
+	}
+	defer commit()
+
 	user, ok := getUser(c)
 	if !ok {
-		return []model.Folder{}, false
+		return []queries.Folder{}, false
 	}
 
-	var folders []model.Folder
-	if database.Database.
-		Joins("JOIN user_folders ON user_folders.folder_id = folders.id").
-		Where("user_folders.user_id = ?", user.ID).
-		Preload("Users").Preload("Entries").Preload("Parent").Preload("Owner").
-		Find(&folders).Error != nil {
+	folders, err := qtx.GetUserFolders(*ctx, user.ID)
+	if err != nil {
 		status.InternalServerError(c, nil)
-		return []model.Folder{}, false
+		return []queries.Folder{}, false
 	}
 
 	return folders, true
 }
 
-func getUserFolder(c *fiber.Ctx, folderId uint) (model.Folder, bool) {
-	folders, ok := getUserFolders(c)
+func getUserFolder(c *fiber.Ctx, folderId int64) (queries.Folder, bool) {
+	qtx, ctx, commit, ok := database.BeginTransaction(c)
 	if !ok {
-		return model.Folder{}, false
+		return queries.Folder{}, false
+	}
+	defer commit()
+
+	user, ok := getUser(c)
+	if !ok {
+		return queries.Folder{}, false
 	}
 
-	var folder model.Folder
-	for _, f := range folders {
-		if f.ID == folderId {
-			folder = f
+	folder, err := qtx.GetUserFolder(*ctx, queries.GetUserFolderParams{
+		UserID:   user.ID,
+		FolderID: folderId,
+	})
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			status.NotFound(c, nil)
+		} else {
+			status.InternalServerError(c, nil)
 		}
-	}
 
-	if folder.ID == 0 {
-		status.NotFound(c, nil)
-		return model.Folder{}, false
+		return queries.Folder{}, false
 	}
 
 	return folder, true
 }
 
-func createFolder(c *fiber.Ctx, tx *gorm.DB, folder *model.Folder, user *model.User, parent *model.Folder) error {
+func createFolder(c *fiber.Ctx, qtx *queries.Queries, folder *queries.Folder, user *queries.User, parent *queries.Folder) error {
 	if parent == nil {
-		err := tx.Where("parent_id IS NULL AND owner_id = ?", user.ID).First(&model.Folder{}).Error
+		err := tx.Where("parent_id IS NULL AND owner_id = ?", user.ID).First(&models.Folder{}).Error
 		if err == nil {
 			return status.Unauthorized(c, nil)
 		}

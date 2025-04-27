@@ -10,6 +10,7 @@ import (
 	"github.com/LeonardJouve/pass-secure/database"
 	"github.com/LeonardJouve/pass-secure/database/queries"
 	"github.com/LeonardJouve/pass-secure/env"
+	"github.com/LeonardJouve/pass-secure/schemas"
 	"github.com/LeonardJouve/pass-secure/status"
 	"github.com/gofiber/fiber/v2"
 )
@@ -42,6 +43,8 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+
+	schemas.Init()
 
 	app := fiber.New()
 	app.Get("/test", func(c *fiber.Ctx) error {
