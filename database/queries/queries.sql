@@ -14,9 +14,22 @@ SELECT * FROM users
 WHERE email = $1 OR username = $2 LIMIT 1;
 
 -- name: CreateUser :one
-INSERT INTO users(email, username, password)
-VALUES ($1, $2, $3)
-RETURNING *;
+WITH new_user AS (
+    INSERT INTO users(email, username, password)
+    VALUES ($1, $2, $3)
+    RETURNING *
+), folder AS (
+    INSERT INTO folders(owner_id, name, parent_id)
+    SELECT id, '', NULL FROM new_user
+    RETURNING *
+), user_folder AS (
+    INSERT INTO user_folders(user_id, folder_id)
+    SELECT owner_id, id FROM folder
+)
+SELECT * FROM users
+WHERE id = (
+    SELECT id FROM new_user
+);
 
 -- name: UpdateUser :one
 UPDATE users

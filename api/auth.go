@@ -77,19 +77,9 @@ func Register(c *fiber.Ctx) error {
 		return status.InternalServerError(c, nil)
 	}
 
-	// TODO: create folder at the same time
 	user, err := qtx.CreateUser(*ctx, input)
 	if err != nil {
 		return status.InternalServerError(c, nil)
-	}
-
-	folder := queries.CreateFolderParams{
-		Name:     "",
-		OwnerID:  user.ID,
-		ParentID: nil,
-	}
-	if _, ok := createFolder(c, &folder, &user, nil); !ok {
-		return nil
 	}
 
 	return status.Created(c, models.SanitizeUser(c, &user))

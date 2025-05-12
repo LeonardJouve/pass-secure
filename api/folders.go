@@ -13,6 +13,12 @@ import (
 )
 
 func CreateFolder(c *fiber.Ctx) error {
+	qtx, ctx, commit, ok := database.BeginTransaction(c)
+	if !ok {
+		return status.InternalServerError(c, nil)
+	}
+	defer commit()
+
 	user, ok := getUser(c)
 	if !ok {
 		return nil
@@ -28,9 +34,13 @@ func CreateFolder(c *fiber.Ctx) error {
 		return nil
 	}
 
-	folder, ok := createFolder(c, &input, &user, &parentFolder)
-	if !ok {
-		return nil
+	if parentFolder.OwnerID != user.ID {
+		return status.Unauthorized(c, nil)
+	}
+
+	folder, err := qtx.CreateFolder(*ctx, input)
+	if err != nil {
+		return status.InternalServerError(c, nil)
 	}
 
 	return status.Created(c, models.SanitizeFolder(c, &folder))
@@ -180,37 +190,6 @@ func getUserFolder(c *fiber.Ctx, folderId int64) (queries.Folder, bool) {
 			status.InternalServerError(c, nil)
 		}
 
-		return queries.Folder{}, false
-	}
-
-	return folder, true
-}
-
-func createFolder(c *fiber.Ctx, input *queries.CreateFolderParams, user *queries.User, parent *queries.Folder) (queries.Folder, bool) {
-	qtx, ctx, commit, ok := database.BeginTransaction(c)
-	if !ok {
-		return queries.Folder{}, false
-	}
-	defer commit()
-
-	if parent == nil {
-		// TODO: do not allow nil parent as it is created with the user
-		_, err := qtx.GetUserRootFolder(*ctx, user.ID)
-		if err == nil {
-			status.BadRequest(c, errors.New("invalid parent_id"))
-			return queries.Folder{}, false
-		} else if !errors.Is(err, sql.ErrNoRows) {
-			status.InternalServerError(c, nil)
-			return queries.Folder{}, false
-		}
-	} else if parent.OwnerID != user.ID {
-		status.Unauthorized(c, nil)
-		return queries.Folder{}, false
-	}
-
-	folder, err := qtx.CreateFolder(*ctx, *input)
-	if err != nil {
-		status.InternalServerError(c, nil)
 		return queries.Folder{}, false
 	}
 
