@@ -31,7 +31,7 @@ WHERE id = $1;
 -- name: GetUserEntries :many
 SELECT * FROM entries
 WHERE id IN (
-    SELECT entry_id FROM folder_entries
+    SELECT id FROM entries
     WHERE folder_id IN (
         SELECT folder_id FROM user_folders WHERE user_id = $1
     )
@@ -39,49 +39,23 @@ WHERE id IN (
 
 -- name: GetUserEntry :one
 SELECT * FROM entries
-WHERE id IN (
-    SELECT entry_id FROM folder_entries
+WHERE entries.id = sqlc.arg(entry_id) AND entries.id IN (
+    SELECT id FROM entries
     WHERE folder_id IN (
         SELECT folder_id FROM user_folders WHERE user_id = $1
     )
-) AND id = sqlc.arg(entry_id);
-
--- name: CreateEntry :one
-WITH entry AS (
-    INSERT INTO entries(name, username, password, url, folder_id)
-    VALUES($1, $2, $3, $4, $5)
-    RETURNING *
-),
-folder_entry AS (
-    INSERT INTO folder_entries(folder_id, entry_id)
-    SELECT folder_id, id FROM entry
-    RETURNING *
-)
-SELECT * FROM entries
-WHERE id = (
-    SELECT id FROM entry
 );
 
+-- name: CreateEntry :one
+INSERT INTO entries(name, username, password, url, folder_id)
+VALUES($1, $2, $3, $4, $5)
+RETURNING *;
+
 -- name: UpdateEntry :one
-WITH old_entry AS (
-    SELECT * FROM entries
-    WHERE id = $1
-),
-new_entry AS (
-    UPDATE entries
-    SET name = $2, username = $3, password = $4, url = $5, folder_id = $6
-    WHERE id = $1
-    RETURNING *
-),
-folder_entry AS (
-    UPDATE folder_entries
-    SET folder_id = $6
-    WHERE folder_id = (
-        SELECT folder_id FROM old_entry
-    ) AND entry_id = $1
-)
-SELECT * FROM entries
-WHERE entries.id = $1;
+UPDATE entries
+SET name = $2, username = $3, password = $4, url = $5, folder_id = $6
+WHERE id = $1
+RETURNING *;
 
 -- name: DeleteEntry :exec
 DELETE FROM entries

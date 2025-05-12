@@ -194,6 +194,7 @@ func createFolder(c *fiber.Ctx, input *queries.CreateFolderParams, user *queries
 	defer commit()
 
 	if parent == nil {
+		// TODO: do not allow nil parent as it is created with the user
 		_, err := qtx.GetUserRootFolder(*ctx, user.ID)
 		if err == nil {
 			status.BadRequest(c, errors.New("invalid parent_id"))

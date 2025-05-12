@@ -77,6 +77,7 @@ func Register(c *fiber.Ctx) error {
 		return status.InternalServerError(c, nil)
 	}
 
+	// TODO: create folder at the same time
 	user, err := qtx.CreateUser(*ctx, input)
 	if err != nil {
 		return status.InternalServerError(c, nil)

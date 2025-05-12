@@ -5,6 +5,6 @@ Bitwarden encryption protocol: https://bitwarden.com/help/bitwarden-security-whi
 Bitwarden share protocol: https://bitwarden.com/help/bitwarden-security-white-paper/#sharing-data-between-users
 
 ***TODO:***
-- Schema delete cascading
+- On user creation also create root folder
 - `DELETE folders/{folder_id}/invite`
 - Venom tests
