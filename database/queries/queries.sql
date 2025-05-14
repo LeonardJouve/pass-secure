@@ -133,3 +133,10 @@ WHERE id IN (
 SELECT * FROM folders
 WHERE id = $1;
 
+-- name: GetFolderUsers :many
+SELECT user_id FROM user_folders
+WHERE folder_id = $1;
+
+-- name: GetFoldersUsers :many
+SELECT * FROM user_folders
+WHERE folder_id = ANY($1::bigint[]);
