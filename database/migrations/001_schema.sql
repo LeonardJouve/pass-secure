@@ -2,7 +2,10 @@ CREATE TABLE IF NOT EXISTS users (
     id   BIGSERIAL PRIMARY KEY,
     email VARCHAR(128) UNIQUE NOT NULL,
     username VARCHAR(128) UNIQUE NOT NULL,
-	password VARCHAR(512) NOT NULL
+	password VARCHAR(512) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP GENERATED ALWAYS AS (CURRENT_TIMESTAMP) STORED,
+    deleted_at TIMESTAMP DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS folders (
@@ -11,7 +14,10 @@ CREATE TABLE IF NOT EXISTS folders (
     owner_id BIGINT NOT NULL,
     parent_id BIGINT NULL,
     CONSTRAINT folders_owner_fk FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE,
-    CONSTRAINT folders_parent_fk FOREIGN KEY (parent_id) REFERENCES folders(id) ON DELETE CASCADE
+    CONSTRAINT folders_parent_fk FOREIGN KEY (parent_id) REFERENCES folders(id) ON DELETE CASCADE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP GENERATED ALWAYS AS (CURRENT_TIMESTAMP) STORED,
+    deleted_at TIMESTAMP DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS entries (
@@ -21,7 +27,10 @@ CREATE TABLE IF NOT EXISTS entries (
     password VARCHAR(512) NOT NULL,
     url VARCHAR(512) NULL,
     folder_id BIGINT NOT NULL,
-    CONSTRAINT entries_folder_fk FOREIGN KEY (folder_id) REFERENCES folders(id) ON DELETE CASCADE
+    CONSTRAINT entries_folder_fk FOREIGN KEY (folder_id) REFERENCES folders(id) ON DELETE CASCADE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP GENERATED ALWAYS AS (CURRENT_TIMESTAMP) STORED,
+    deleted_at TIMESTAMP DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS user_folders (
@@ -29,5 +38,8 @@ CREATE TABLE IF NOT EXISTS user_folders (
     folder_id BIGINT,
     CONSTRAINT user_folders_pk PRIMARY KEY (user_id, folder_id),
     CONSTRAINT user_folders_user_fk FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-    CONSTRAINT user_folders_folder_fk FOREIGN KEY (folder_id) REFERENCES folders(id) ON DELETE CASCADE
+    CONSTRAINT user_folders_folder_fk FOREIGN KEY (folder_id) REFERENCES folders(id) ON DELETE CASCADE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP GENERATED ALWAYS AS (CURRENT_TIMESTAMP) STORED,
+    deleted_at TIMESTAMP DEFAULT 0
 );
