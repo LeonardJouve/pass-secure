@@ -1,12 +1,13 @@
 package main
 
 import (
-	"database/sql"
-	"errors"
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"os"
 
 	"github.com/LeonardJouve/pass-secure/database"
+	"github.com/LeonardJouve/pass-secure/database/models"
 	"github.com/LeonardJouve/pass-secure/database/queries"
 	"github.com/LeonardJouve/pass-secure/env"
 	"github.com/LeonardJouve/pass-secure/schemas"
@@ -37,22 +38,36 @@ func main() {
 		panic(err)
 	}
 
-	// _, err = db.Exec("LISTEN events")
-	// if err != nil {
-	// 	panic(err)
-	// }
+	go func() {
+		conn, release, ctx, err := database.Acquire()
+		if err != nil {
+			panic(err)
+		}
+		defer release()
 
-	// go func() {
-	// 	for {
-	// 		notification, err := db.WaitForNotification()
-	// 		if err != nil {
-	// 			fmt.Printf("test %s", err.Error())
-	// 			panic(err)
-	// 		}
+		_, err = conn.Exec(ctx, "LISTEN events")
+		if err != nil {
+			panic(err)
+		}
 
-	// 		fmt.Printf("Notification: %s\n", notification.Payload)
-	// 	}
-	// }()
+		for {
+			notification, err := conn.Conn().WaitForNotification(ctx)
+			if err != nil {
+				panic(err)
+			}
+
+			fmt.Printf("Notification: %s\n", notification.Payload)
+		}
+	}()
+
+	generate := func(len int) string {
+		random := make([]byte, len)
+		if _, err := rand.Read(random); err != nil {
+			return ""
+		}
+
+		return hex.EncodeToString(random)
+	}
 
 	schemas.Init()
 
@@ -64,18 +79,9 @@ func main() {
 		}
 		defer commit()
 
-		users, err := qtx.GetUsers(*ctx)
-		if err != nil {
-			return status.BadRequest(c, err)
-		}
-		for _, user := range users {
-			fmt.Println(user.Email)
-		}
-		fmt.Println("Selected users")
-
-		usr, err := qtx.CreateUser(*ctx, queries.CreateUserParams{
-			Email:    "cdasda",
-			Username: "dwadaw",
+		user, err := qtx.CreateUser(ctx, queries.CreateUserParams{
+			Email:    generate(10),
+			Username: generate(10),
 			Password: "password",
 		})
 		if err != nil {
@@ -83,28 +89,18 @@ func main() {
 		}
 		fmt.Println("Created user")
 
-		user, err := qtx.GetUser(*ctx, usr.ID)
-		if err != nil {
-			if errors.Is(err, sql.ErrNoRows) {
-				return status.BadRequest(c, errors.New("user not found"))
-			}
-			return status.InternalServerError(c, err)
-		}
-		fmt.Println("Selected user")
-
-		user, err = qtx.UpdateUser(*ctx, queries.UpdateUserParams{
-			Email: "testttttt",
+		user, err = qtx.UpdateUser(ctx, queries.UpdateUserParams{
+			ID:       user.ID,
+			Password: user.Password,
+			Username: generate(10),
+			Email:    generate(10),
 		})
 		if err != nil {
 			return status.InternalServerError(c, err)
 		}
 		fmt.Println("Updated user")
 
-		return status.Ok(c, fiber.Map{
-			"email":    user.Email,
-			"username": user.Username,
-			"password": user.Password,
-		})
+		return status.Ok(c, models.SanitizeUser(c, &user))
 	})
 
 	app.Listen(fmt.Sprintf(":%d", PORT))

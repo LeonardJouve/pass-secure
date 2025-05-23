@@ -66,7 +66,7 @@ func GetLoginUserInput(c *fiber.Ctx) (queries.User, bool) {
 
 	invalidCredentialsErr := errors.New("invalid credentials")
 
-	user, err := qtx.GetUserByEmail(*ctx, input.Email)
+	user, err := qtx.GetUserByEmail(ctx, input.Email)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			status.Unauthorized(c, invalidCredentialsErr)

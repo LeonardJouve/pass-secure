@@ -45,7 +45,7 @@ func Protect(c *fiber.Ctx) error {
 		return status.InternalServerError(c, nil)
 	}
 
-	user, err := qtx.GetUser(*ctx, userId)
+	user, err := qtx.GetUser(ctx, userId)
 	if err != nil {
 		return status.InternalServerError(c, nil)
 	}
@@ -67,7 +67,8 @@ func Register(c *fiber.Ctx) error {
 		return nil
 	}
 
-	_, err := qtx.GetUserByEmailOrUsername(*ctx, queries.GetUserByEmailOrUsernameParams{
+	// TODO
+	_, err := qtx.GetUserByEmailOrUsername(ctx, queries.GetUserByEmailOrUsernameParams{
 		Email:    input.Email,
 		Username: input.Username,
 	})
@@ -77,7 +78,7 @@ func Register(c *fiber.Ctx) error {
 		return status.InternalServerError(c, nil)
 	}
 
-	user, err := qtx.CreateUser(*ctx, input)
+	user, err := qtx.CreateUser(ctx, input)
 	if err != nil {
 		return status.InternalServerError(c, nil)
 	}

@@ -23,7 +23,7 @@ func SanitizeFolder(c *fiber.Ctx, folder *queries.Folder) (SanitizedFolder, bool
 	}
 	defer commit()
 
-	userIds, err := qtx.GetFolderUsers(*ctx, folder.ID)
+	userIds, err := qtx.GetFolderUsers(ctx, folder.ID)
 	if err != nil {
 		status.InternalServerError(c, nil)
 		return SanitizedFolder{}, false
@@ -51,7 +51,7 @@ func SanitizeFolders(c *fiber.Ctx, folders *[]queries.Folder) ([]SanitizedFolder
 		folderIds[i] = folder.ID
 	}
 
-	foldersUsers, err := qtx.GetFoldersUsers(*ctx, folderIds)
+	foldersUsers, err := qtx.GetFoldersUsers(ctx, folderIds)
 	if err != nil {
 		status.InternalServerError(c, nil)
 		return []SanitizedFolder{}, false

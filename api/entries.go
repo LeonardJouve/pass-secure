@@ -38,7 +38,7 @@ func CreateEntry(c *fiber.Ctx) error {
 		return status.Unauthorized(c, nil)
 	}
 
-	entry, err := qtx.CreateEntry(*ctx, input)
+	entry, err := qtx.CreateEntry(ctx, input)
 	if err != nil {
 		return status.InternalServerError(c, nil)
 	}
@@ -91,7 +91,7 @@ func UpdateEntry(c *fiber.Ctx) error {
 		return nil
 	}
 
-	parentFolder, err := qtx.GetFolder(*ctx, entry.FolderID)
+	parentFolder, err := qtx.GetFolder(ctx, entry.FolderID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return status.BadRequest(c, errors.New("invalid folder_id"))
@@ -109,7 +109,7 @@ func UpdateEntry(c *fiber.Ctx) error {
 		return nil
 	}
 
-	newEntry, err := qtx.UpdateEntry(*ctx, input)
+	newEntry, err := qtx.UpdateEntry(ctx, input)
 	if err != nil {
 		return status.InternalServerError(c, nil)
 	}
@@ -139,7 +139,7 @@ func RemoveEntry(c *fiber.Ctx) error {
 		return nil
 	}
 
-	parentFolder, err := qtx.GetFolder(*ctx, entry.FolderID)
+	parentFolder, err := qtx.GetFolder(ctx, entry.FolderID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return status.BadRequest(c, errors.New("invalid folder_id"))
@@ -152,7 +152,7 @@ func RemoveEntry(c *fiber.Ctx) error {
 		return status.Unauthorized(c, nil)
 	}
 
-	err = qtx.DeleteEntry(*ctx, entry.ID)
+	err = qtx.DeleteEntry(ctx, entry.ID)
 	if err != nil {
 		return status.InternalServerError(c, nil)
 	}
@@ -172,7 +172,7 @@ func getUserEntries(c *fiber.Ctx) ([]queries.Entry, bool) {
 		return []queries.Entry{}, false
 	}
 
-	entries, err := qtx.GetUserEntries(*ctx, user.ID)
+	entries, err := qtx.GetUserEntries(ctx, user.ID)
 	if err != nil {
 		status.InternalServerError(c, nil)
 		return []queries.Entry{}, false
@@ -193,7 +193,7 @@ func getUserEntry(c *fiber.Ctx, entryId int64) (queries.Entry, bool) {
 		return queries.Entry{}, false
 	}
 
-	entry, err := qtx.GetUserEntry(*ctx, queries.GetUserEntryParams{
+	entry, err := qtx.GetUserEntry(ctx, queries.GetUserEntryParams{
 		UserID:  user.ID,
 		EntryID: entryId,
 	})

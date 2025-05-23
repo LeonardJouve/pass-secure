@@ -38,7 +38,7 @@ func CreateFolder(c *fiber.Ctx) error {
 		return status.Unauthorized(c, nil)
 	}
 
-	folder, err := qtx.CreateFolder(*ctx, input)
+	folder, err := qtx.CreateFolder(ctx, input)
 	if err != nil {
 		return status.InternalServerError(c, nil)
 	}
@@ -82,7 +82,7 @@ func UpdateFolder(c *fiber.Ctx) error {
 		return nil
 	}
 
-	newFolder, err := qtx.UpdateFolder(*ctx, input)
+	newFolder, err := qtx.UpdateFolder(ctx, input)
 	if err != nil {
 		return status.InternalServerError(c, nil)
 	}
@@ -158,7 +158,7 @@ func RemoveFolder(c *fiber.Ctx) error {
 		return status.Unauthorized(c, nil)
 	}
 
-	err = qtx.DeleteFolder(*ctx, folder.ID)
+	err = qtx.DeleteFolder(ctx, folder.ID)
 	if err != nil {
 		return status.InternalServerError(c, nil)
 	}
@@ -178,7 +178,7 @@ func getUserFolders(c *fiber.Ctx) ([]queries.Folder, bool) {
 		return []queries.Folder{}, false
 	}
 
-	folders, err := qtx.GetUserFolders(*ctx, user.ID)
+	folders, err := qtx.GetUserFolders(ctx, user.ID)
 	if err != nil {
 		status.InternalServerError(c, nil)
 		return []queries.Folder{}, false
@@ -199,7 +199,7 @@ func getUserFolder(c *fiber.Ctx, folderId int64) (queries.Folder, bool) {
 		return queries.Folder{}, false
 	}
 
-	folder, err := qtx.GetUserFolder(*ctx, queries.GetUserFolderParams{
+	folder, err := qtx.GetUserFolder(ctx, queries.GetUserFolderParams{
 		UserID:   user.ID,
 		FolderID: folderId,
 	})

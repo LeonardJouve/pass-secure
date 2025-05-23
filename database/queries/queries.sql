@@ -26,10 +26,7 @@ WITH new_user AS (
     INSERT INTO user_folders(user_id, folder_id)
     SELECT owner_id, id FROM folder
 )
-SELECT * FROM users
-WHERE id = (
-    SELECT id FROM new_user
-);
+SELECT * FROM new_user;
 
 -- name: UpdateUser :one
 UPDATE users
@@ -108,10 +105,7 @@ user_folder AS (
     ON CONFLICT (user_id, folder_id) DO NOTHING
     RETURNING *
 )
-SELECT * FROM folders
-WHERE folders.id = (
-    SELECT id FROM folder
-);
+SELECT * FROM folder;
 
 -- name: DeleteFolder :exec
 DELETE FROM folders

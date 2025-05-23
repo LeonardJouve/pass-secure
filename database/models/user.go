@@ -6,14 +6,16 @@ import (
 )
 
 type SanitizedUser struct {
-	ID    int64  `json:"id"`
-	Email string `json:"email"`
+	ID       int64  `json:"id"`
+	Email    string `json:"email"`
+	Username string `json:"username"`
 }
 
 func SanitizeUser(_ *fiber.Ctx, user *queries.User) SanitizedUser {
 	return SanitizedUser{
-		ID:    user.ID,
-		Email: user.Email,
+		ID:       user.ID,
+		Email:    user.Email,
+		Username: user.Username,
 	}
 }
 

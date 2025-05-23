@@ -13,5 +13,6 @@ Bitwarden share protocol: https://bitwarden.com/help/bitwarden-security-white-pa
 - Logger
 - Monitoring
 - Ansible
+- Websocket
 - `DELETE folders/{folder_id}/invite`
 - Venom tests

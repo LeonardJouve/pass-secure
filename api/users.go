@@ -17,7 +17,7 @@ func GetUsers(c *fiber.Ctx) error {
 	}
 	defer commit()
 
-	users, err := qtx.GetUsers(*ctx)
+	users, err := qtx.GetUsers(ctx)
 	if err != nil {
 		return status.InternalServerError(c, nil)
 	}
@@ -37,7 +37,7 @@ func GetUser(c *fiber.Ctx) error {
 		return status.BadRequest(c, errors.New("invalid user_id"))
 	}
 
-	user, err := qtx.GetUser(*ctx, int64(userId))
+	user, err := qtx.GetUser(ctx, int64(userId))
 	if err != nil {
 		return status.NotFound(c, nil)
 	}
@@ -66,7 +66,7 @@ func RemoveMe(c *fiber.Ctx) error {
 		return nil
 	}
 
-	err := qtx.DeleteUser(*ctx, user.ID)
+	err := qtx.DeleteUser(ctx, user.ID)
 	if err != nil {
 		return status.InternalServerError(c, nil)
 	}
@@ -91,7 +91,7 @@ func UpdateMe(c *fiber.Ctx) error {
 		return nil
 	}
 
-	newUser, err := qtx.UpdateUser(*ctx, input)
+	newUser, err := qtx.UpdateUser(ctx, input)
 	if err != nil {
 		return status.InternalServerError(c, nil)
 	}

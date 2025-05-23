@@ -84,7 +84,8 @@ func IsExpired(c *fiber.Ctx, claims jwt.RegisteredClaims) bool {
 		return true
 	}
 
-	_, err = qtx.GetUser(*ctx, userId)
+	// TODO
+	_, err = qtx.GetUser(ctx, userId)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			status.Unauthorized(c, nil)
