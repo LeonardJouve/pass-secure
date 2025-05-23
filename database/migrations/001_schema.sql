@@ -43,3 +43,24 @@ CREATE TABLE IF NOT EXISTS user_folders (
     updated_at TIMESTAMP GENERATED ALWAYS AS (CURRENT_TIMESTAMP) STORED,
     deleted_at TIMESTAMP DEFAULT 0
 );
+
+CREATE OR REPLACE FUNCTION test()
+RETURNS trigger AS $$
+BEGIN
+    PERFORM pg_notify(
+        'events',
+        json_build_object(
+            'table', TG_TABLE_NAME,
+            'schema', TG_TABLE_SCHEMA,
+            'operation', TG_OP,
+            'id', NEW.id
+        )::text
+    );
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE TRIGGER test
+AFTER UPDATE ON users
+FOR EACH ROW
+EXECUTE FUNCTION test();

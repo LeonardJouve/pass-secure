@@ -37,6 +37,23 @@ func main() {
 		panic(err)
 	}
 
+	_, err = db.Exec("LISTEN events")
+	if err != nil {
+		panic(err)
+	}
+
+	// go func() {
+	// 	for {
+	// 		notification, err := db.WaitForNotification()
+	// 		if err != nil {
+	// 			fmt.Printf("test %s", err.Error())
+	// 			panic(err)
+	// 		}
+
+	// 		fmt.Printf("Notification: %s\n", notification.Payload)
+	// 	}
+	// }()
+
 	schemas.Init()
 
 	app := fiber.New()
@@ -48,21 +65,31 @@ func main() {
 		defer commit()
 
 		usr, err := qtx.CreateUser(*ctx, queries.CreateUserParams{
-			Email:    "emaillllll",
-			Username: "usernameeeee",
+			Email:    "cdasda",
+			Username: "dwadaw",
 			Password: "password",
 		})
 		if err != nil {
 			return status.BadRequest(c, err)
 		}
+		fmt.Println("Created user")
 
 		user, err := qtx.GetUser(*ctx, usr.ID)
 		if err != nil {
-			if err == sql.ErrNoRows {
+			if errors.Is(err, sql.ErrNoRows) {
 				return status.BadRequest(c, errors.New("user not found"))
 			}
-			return status.InternalServerError(c, nil)
+			return status.InternalServerError(c, err)
 		}
+		fmt.Println("Selected user")
+
+		user, err = qtx.UpdateUser(*ctx, queries.UpdateUserParams{
+			Email: "testttttt",
+		})
+		if err != nil {
+			return status.InternalServerError(c, err)
+		}
+		fmt.Println("Updated user")
 
 		return status.Ok(c, fiber.Map{
 			"email":    user.Email,

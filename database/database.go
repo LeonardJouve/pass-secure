@@ -4,13 +4,13 @@ import (
 	"context"
 	"embed"
 	"errors"
-	"os"
 	"path"
 
 	"github.com/LeonardJouve/pass-secure/database/queries"
 	"github.com/LeonardJouve/pass-secure/status"
 	"github.com/gofiber/fiber/v2"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 type Database struct {
@@ -19,7 +19,7 @@ type Database struct {
 	ctx  context.Context
 }
 
-const MIGRATIONS_FOLDER = "database/migrations"
+const MIGRATIONS_FOLDER = "migrations"
 
 //go:embed migrations/*.sql
 var migrations embed.FS
@@ -32,18 +32,16 @@ func New(connectionURL string) (*Database, error) {
 		oldDb.Close()
 	}
 
-	db = &Database{
-		ctx: context.Background(),
-	}
-
-	db.conn, err = pgx.Connect(db.ctx, connectionURL)
+	conn, err := pgx.Connect(db.ctx, connectionURL)
 	if err != nil {
 		return &Database{}, err
 	}
 
-	db.qry = queries.New(db.conn)
-
-	return db, nil
+	return &Database{
+		ctx:  context.Background(),
+		conn: conn,
+		qry:  queries.New(db.conn),
+	}, nil
 }
 
 func GetInstance() (*Database, error) {
@@ -68,19 +66,20 @@ func (d *Database) Close() {
 	d.conn.Close(d.ctx)
 }
 
+func (d *Database) Exec(sql string, arguments ...any) (pgconn.CommandTag, error) {
+	return d.conn.Exec(d.ctx, sql, arguments...)
+}
+
+func (d *Database) WaitForNotification() (*pgconn.Notification, error) {
+	return d.conn.WaitForNotification(d.ctx)
+}
+
 func (d *Database) Migrate() error {
 	if d.conn.IsClosed() {
 		return errors.New("database connection closed")
 	}
 
-	ctx := context.Background()
-
-	executable, err := os.Executable()
-	if err != nil {
-		return err
-	}
-
-	migrationsPath := path.Join(path.Dir(executable), MIGRATIONS_FOLDER)
+	migrationsPath := MIGRATIONS_FOLDER
 
 	migrationEntries, err := migrations.ReadDir(migrationsPath)
 	if err != nil {
@@ -96,7 +95,7 @@ func (d *Database) Migrate() error {
 			return err
 		}
 
-		_, err = d.conn.Exec(ctx, string(content))
+		_, err = d.conn.Exec(d.ctx, string(content))
 		if err != nil {
 			return err
 		}
