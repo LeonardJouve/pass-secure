@@ -32,15 +32,17 @@ func New(connectionURL string) (*Database, error) {
 		oldDb.Close()
 	}
 
-	conn, err := pgx.Connect(db.ctx, connectionURL)
+	ctx := context.Background()
+
+	conn, err := pgx.Connect(ctx, connectionURL)
 	if err != nil {
 		return &Database{}, err
 	}
 
 	return &Database{
-		ctx:  context.Background(),
+		ctx:  ctx,
 		conn: conn,
-		qry:  queries.New(db.conn),
+		qry:  queries.New(conn),
 	}, nil
 }
 
