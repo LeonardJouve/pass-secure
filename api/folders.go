@@ -43,7 +43,12 @@ func CreateFolder(c *fiber.Ctx) error {
 		return status.InternalServerError(c, nil)
 	}
 
-	return status.Created(c, models.SanitizeFolder(c, &folder))
+	sanitizedFolder, ok := models.SanitizeFolder(c, &folder)
+	if !ok {
+		return nil
+	}
+
+	return status.Created(c, sanitizedFolder)
 }
 
 func UpdateFolder(c *fiber.Ctx) error {
@@ -82,7 +87,12 @@ func UpdateFolder(c *fiber.Ctx) error {
 		return status.InternalServerError(c, nil)
 	}
 
-	return status.Ok(c, models.SanitizeFolder(c, &newFolder))
+	sanitizedFolder, ok := models.SanitizeFolder(c, &newFolder)
+	if !ok {
+		return nil
+	}
+
+	return status.Ok(c, sanitizedFolder)
 }
 
 func GetFolders(c *fiber.Ctx) error {
@@ -91,7 +101,12 @@ func GetFolders(c *fiber.Ctx) error {
 		return nil
 	}
 
-	return status.Ok(c, models.SanitizeFolders(c, &folders))
+	sanitizedFolders, ok := models.SanitizeFolders(c, &folders)
+	if !ok {
+		return nil
+	}
+
+	return status.Ok(c, sanitizedFolders)
 }
 
 func GetFolder(c *fiber.Ctx) error {
@@ -105,7 +120,12 @@ func GetFolder(c *fiber.Ctx) error {
 		return nil
 	}
 
-	return status.Ok(c, models.SanitizeFolder(c, &folder))
+	sanitizedFolder, ok := models.SanitizeFolder(c, &folder)
+	if !ok {
+		return nil
+	}
+
+	return status.Ok(c, sanitizedFolder)
 }
 
 func RemoveFolder(c *fiber.Ctx) error {
