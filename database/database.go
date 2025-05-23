@@ -39,11 +39,13 @@ func New(connectionURL string) (*Database, error) {
 		return &Database{}, err
 	}
 
-	return &Database{
+	db = &Database{
 		ctx:  ctx,
 		conn: conn,
 		qry:  queries.New(conn),
-	}, nil
+	}
+
+	return db, nil
 }
 
 func GetInstance() (*Database, error) {
