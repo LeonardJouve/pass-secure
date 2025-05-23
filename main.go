@@ -37,10 +37,10 @@ func main() {
 		panic(err)
 	}
 
-	_, err = db.Exec("LISTEN events")
-	if err != nil {
-		panic(err)
-	}
+	// _, err = db.Exec("LISTEN events")
+	// if err != nil {
+	// 	panic(err)
+	// }
 
 	// go func() {
 	// 	for {
@@ -63,6 +63,15 @@ func main() {
 			return nil
 		}
 		defer commit()
+
+		users, err := qtx.GetUsers(*ctx)
+		if err != nil {
+			return status.BadRequest(c, err)
+		}
+		for _, user := range users {
+			fmt.Println(user.Email)
+		}
+		fmt.Println("Selected users")
 
 		usr, err := qtx.CreateUser(*ctx, queries.CreateUserParams{
 			Email:    "cdasda",
