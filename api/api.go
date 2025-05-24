@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/LeonardJouve/pass-secure/status"
+	"github.com/LeonardJouve/pass-secure/websocket"
 	"github.com/gofiber/fiber/v2"
 )
 
@@ -20,6 +21,9 @@ func Start(port uint16) func() error {
 	app.Post("/register", Register)
 
 	apiGroup := app.Group("", Protect)
+
+	go websocket.Process()
+	apiGroup.Get("/ws", websocket.HandleUpgrade, websocket.HandleSocket)
 
 	folderGroup := apiGroup.Group("/folders")
 	folderGroup.Get("/", GetFolders)
