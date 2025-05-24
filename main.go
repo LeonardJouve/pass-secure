@@ -45,7 +45,7 @@ func main() {
 		}
 		defer release()
 
-		_, err = conn.Exec(ctx, "LISTEN events")
+		_, err = conn.Exec(ctx, "LISTEN websocket_events")
 		if err != nil {
 			panic(err)
 		}

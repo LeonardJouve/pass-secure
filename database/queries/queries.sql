@@ -14,19 +14,9 @@ SELECT * FROM users
 WHERE email = $1 OR username = $2 LIMIT 1;
 
 -- name: CreateUser :one
-WITH new_user AS (
-    INSERT INTO users(email, username, password)
-    VALUES ($1, $2, $3)
-    RETURNING *
-), folder AS (
-    INSERT INTO folders(owner_id, name, parent_id)
-    SELECT id, '', NULL FROM new_user
-    RETURNING *
-), user_folder AS (
-    INSERT INTO user_folders(user_id, folder_id)
-    SELECT owner_id, id FROM folder
-)
-SELECT * FROM new_user;
+INSERT INTO users(email, username, password)
+VALUES ($1, $2, $3)
+RETURNING *;
 
 -- name: UpdateUser :one
 UPDATE users
@@ -78,34 +68,15 @@ WHERE parent_id = NULL AND id IN (
 );
 
 -- name: CreateFolder :one
-WITH folder AS (
-    INSERT INTO folders(owner_id, name, parent_id)
-    VALUES($1, $2, $3)
-    RETURNING *
-),
-user_folder AS (
-    INSERT INTO user_folders(user_id, folder_id)
-    SELECT owner_id, id FROM folder
-)
-SELECT * FROM folders
-WHERE id = (
-    SELECT id FROM folder
-);
+INSERT INTO folders(owner_id, name, parent_id)
+VALUES($1, $2, $3)
+RETURNING *;
 
 -- name: UpdateFolder :one
-WITH folder AS (
-    UPDATE folders
-    SET name = $2, owner_id = $3, parent_id = $4
-    WHERE folders.id = $1
-    RETURNING *
-),
-user_folder AS (
-    INSERT INTO user_folders (user_id, folder_id)
-    SELECT owner_id, id FROM folder
-    ON CONFLICT (user_id, folder_id) DO NOTHING
-    RETURNING *
-)
-SELECT * FROM folder;
+UPDATE folders
+SET name = $2, owner_id = $3, parent_id = $4
+WHERE folders.id = $1
+RETURNING *;
 
 -- name: DeleteFolder :exec
 DELETE FROM folders

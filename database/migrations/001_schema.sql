@@ -32,11 +32,57 @@ CREATE TABLE IF NOT EXISTS user_folders (
     CONSTRAINT user_folders_folder_fk FOREIGN KEY (folder_id) REFERENCES folders(id) ON DELETE CASCADE
 );
 
+CREATE OR REPLACE FUNCTION create_root_folder()
+RETURNS TRIGGER AS $$
+BEGIN
+    INSERT INTO folders(owner_id, name, parent_id)
+    VALUES(NEW.id, '', NULL);
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE TRIGGER create_root_folder
+AFTER INSERT ON users
+FOR EACH ROW
+EXECUTE FUNCTION create_root_folder();
+
+CREATE OR REPLACE FUNCTION create_user_folder()
+RETURNS TRIGGER AS $$
+BEGIN
+    INSERT INTO user_folders(user_id, folder_id)
+    VALUES(NEW.owner_id, NEW.id);
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE TRIGGER create_user_folder
+AFTER INSERT ON folders
+FOR EACH ROW
+EXECUTE FUNCTION create_user_folder();
+
+CREATE OR REPLACE FUNCTION create_owner_user_folder()
+RETURNS TRIGGER AS $$
+BEGIN
+    INSERT INTO user_folders (user_id, folder_id)
+    VALUES (NEW.owner_id, NEW.id)
+    ON CONFLICT (user_id, folder_id) DO NOTHING;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE TRIGGER create_owner_user_folder
+AFTER UPDATE ON folders
+FOR EACH ROW
+EXECUTE FUNCTION create_owner_user_folder();
+
 CREATE OR REPLACE FUNCTION test()
 RETURNS trigger AS $$
 BEGIN
     PERFORM pg_notify(
-        'events',
+        'websocket_events',
         json_build_object(
             'table', TG_TABLE_NAME,
             'schema', TG_TABLE_SCHEMA,
@@ -52,7 +98,3 @@ CREATE OR REPLACE TRIGGER test
 AFTER UPDATE ON users
 FOR EACH ROW
 EXECUTE FUNCTION test();
-
--- DROP TRIGGER IF EXISTS test ON users;
-
--- DROP FUNCTION IF EXISTS test();
