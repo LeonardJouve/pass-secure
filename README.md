@@ -10,8 +10,9 @@ Bitwarden share protocol: https://bitwarden.com/help/bitwarden-security-white-pa
 
 **TODO:**
 - Invitations
-- Logger
+- Logging
 - Monitoring
+- Tracing
 - Ansible
 - Websocket
 - `DELETE folders/{folder_id}/invite`
