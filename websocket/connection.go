@@ -83,6 +83,7 @@ func (websocketConnection *WebsocketConnection) close() {
 }
 
 func (websocketConnection *WebsocketConnection) handlePingPong(pongChannel PongChannel) {
+	// TODO: move out ?
 	websocketConnection.Add(1)
 	defer websocketConnection.Done()
 
@@ -127,6 +128,7 @@ func (websocketConnection *WebsocketConnection) handlePingPong(pongChannel PongC
 func (websocketConnections *WebsocketConnections) writeGlobalMessage(messageType MessageType, message MessageContent) {
 	// TODO: mutex ?
 	for _, websocketConnection := range websocketConnections.Connections {
+		// TODO: use go routine with buffered channel
 		websocketConnection.writeMessage(messageType, message)
 	}
 }
