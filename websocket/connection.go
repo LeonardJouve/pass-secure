@@ -7,15 +7,15 @@ import (
 	"sync"
 	"time"
 
-	"github.com/LeonardJouve/pass-secure/database/queries"
 	"github.com/gofiber/contrib/websocket"
 )
 
+type SessionId = string
+
 type WebsocketConnection struct {
 	SessionId    SessionId
-	User         queries.User
+	UserId       int64
 	Connection   *websocket.Conn
-	PongChannel  *PongChannel
 	CloseChannel *CloseChannel
 	sync.WaitGroup
 	sync.Mutex
@@ -49,27 +49,6 @@ func (websocketConnections *WebsocketConnections) get(sessionId SessionId) (*Web
 	return websocketConnection, ok
 }
 
-func (websocketConnection *WebsocketConnection) isInChannel(channel ChannelName) bool {
-	websocketChannel, ok := websocketChannels.get(channel)
-	if !ok {
-		return false
-	}
-
-	if _, ok := websocketChannel[websocketConnection.SessionId]; !ok {
-		return false
-	}
-
-	return true
-}
-
-func (websocketConnection *WebsocketConnection) isAllowedToJoinChannel(channel ChannelName) bool {
-	switch {
-	// TODO
-	default:
-		return false
-	}
-}
-
 func (websocketConnection *WebsocketConnection) writeMessage(messageType MessageType, message MessageContent) bool {
 	message["type"] = messageType
 
@@ -91,15 +70,19 @@ func (websocketConnection *WebsocketConnection) close() {
 	select {
 	case _, ok := <-*websocketConnection.CloseChannel:
 		if ok {
+			// TODO
 			close(*websocketConnection.CloseChannel)
 		}
 	default:
 	}
 	websocketConnection.Connection.SetReadDeadline(time.Now())
-	unregisterChannel <- websocketConnection
+
+	// TODO: send close message and wait for close response
+	websocketConnection.Connection.Close()
+	websocketConnections.remove(websocketConnection)
 }
 
-func (websocketConnection *WebsocketConnection) handlePingPong() {
+func (websocketConnection *WebsocketConnection) handlePingPong(pongChannel PongChannel) {
 	websocketConnection.Add(1)
 	defer websocketConnection.Done()
 
@@ -124,7 +107,7 @@ func (websocketConnection *WebsocketConnection) handlePingPong() {
 		select {
 		case <-*websocketConnection.CloseChannel:
 			return
-		case <-*websocketConnection.PongChannel:
+		case <-pongChannel:
 			hasPong = true
 			timeoutTicker.Stop()
 		case <-timeoutTicker.C:
@@ -134,7 +117,7 @@ func (websocketConnection *WebsocketConnection) handlePingPong() {
 			if !hasPong {
 				continue
 			}
-			websocketConnection.writeMessage(PING_TYPE, MessageContent{})
+			websocketConnection.Connection.WriteMessage(websocket.PingMessage, []byte{})
 			timeoutTicker.Reset(timeout)
 			hasPong = false
 		}
@@ -144,25 +127,6 @@ func (websocketConnection *WebsocketConnection) handlePingPong() {
 func (websocketConnections *WebsocketConnections) writeGlobalMessage(messageType MessageType, message MessageContent) {
 	// TODO: mutex ?
 	for _, websocketConnection := range websocketConnections.Connections {
-		websocketConnection.writeMessage(messageType, message)
-	}
-}
-
-func (websocketConnections *WebsocketConnections) writeChannelMessage(channel ChannelName, messageType MessageType, message MessageContent) {
-	message["channel"] = channel
-
-	// TODO: remove global variable dependency
-	websocketChannel, ok := websocketChannels.get(channel)
-	if !ok {
-		return
-	}
-
-	for sessionId := range websocketChannel {
-		websocketConnection, ok := websocketConnections.get(sessionId)
-		if !ok {
-			continue
-		}
-
 		websocketConnection.writeMessage(messageType, message)
 	}
 }

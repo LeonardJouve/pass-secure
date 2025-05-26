@@ -9,6 +9,8 @@ Bitwarden encryption protocol: https://bitwarden.com/help/bitwarden-security-whi
 Bitwarden share protocol: https://bitwarden.com/help/bitwarden-security-white-paper/#sharing-data-between-users
 
 **TODO:**
+- embed RSA certificates
+- CORS / CSRF
 - Invitations
 - Logger
 - Monitoring
