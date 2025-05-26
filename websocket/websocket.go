@@ -35,12 +35,10 @@ func makeWebsocketHandler(messageChannel MessageChannel) fiber.Handler {
 			return
 		}
 
-		closeChannel := make(CloseChannel, 1)
-
 		websocketConnection := &WebsocketConnection{
 			SessionId:    sessionId,
 			Connection:   connection,
-			CloseChannel: &closeChannel,
+			CloseChannel: make(CloseChannel, 1),
 		}
 
 		websocketConnections.add(websocketConnection)
@@ -97,6 +95,7 @@ func makeWebsocketHandler(messageChannel MessageChannel) fiber.Handler {
 }
 
 func Process() {
+	// TODO: handle stop
 	messageChannel := make(MessageChannel)
 	databaseNotificationChannel := make(DatabaseNotificationChannel)
 
@@ -118,6 +117,8 @@ func listenDatabaseNotifications(databaseNotificationChannel DatabaseNotificatio
 		return
 	}
 	defer release()
+
+	// TODO: handle stop context.SetReadDeadline(ctx, )
 
 	if _, err := conn.Exec(ctx, "LISTEN websocket_events"); err != nil {
 		return

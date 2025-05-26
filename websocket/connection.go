@@ -16,7 +16,7 @@ type WebsocketConnection struct {
 	SessionId    SessionId
 	UserId       int64
 	Connection   *websocket.Conn
-	CloseChannel *CloseChannel
+	CloseChannel CloseChannel
 	sync.WaitGroup
 	sync.Mutex
 }
@@ -68,10 +68,10 @@ func (websocketConnection *WebsocketConnection) writeMessage(messageType Message
 
 func (websocketConnection *WebsocketConnection) close() {
 	select {
-	case _, ok := <-*websocketConnection.CloseChannel:
+	case _, ok := <-websocketConnection.CloseChannel:
 		if ok {
 			// TODO
-			close(*websocketConnection.CloseChannel)
+			close(websocketConnection.CloseChannel)
 		}
 	default:
 	}
@@ -105,7 +105,7 @@ func (websocketConnection *WebsocketConnection) handlePingPong(pongChannel PongC
 
 	for {
 		select {
-		case <-*websocketConnection.CloseChannel:
+		case <-websocketConnection.CloseChannel:
 			return
 		case <-pongChannel:
 			hasPong = true
