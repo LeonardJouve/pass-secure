@@ -22,8 +22,9 @@ func Start(port uint16) func() error {
 
 	apiGroup := app.Group("", Protect)
 
-	go websocket.Process()
-	apiGroup.Get("/ws", websocket.HandleUpgrade, websocket.HandleSocket)
+	hub := websocket.New()
+	go hub.Process()
+	apiGroup.Get("/ws", hub.HandleUpgrade(), hub.HandleSocket())
 
 	folderGroup := apiGroup.Group("/folders")
 	folderGroup.Get("/", GetFolders)
@@ -48,5 +49,9 @@ func Start(port uint16) func() error {
 
 	app.Listen(fmt.Sprintf(":%d", port))
 
-	return app.Shutdown
+	return func() error {
+		hub.Close()
+
+		return app.Shutdown()
+	}
 }

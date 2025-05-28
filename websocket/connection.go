@@ -13,10 +13,10 @@ import (
 type SessionId = string
 
 type WebsocketConnection struct {
-	SessionId    SessionId
-	UserId       int64
-	Connection   *websocket.Conn
-	CloseChannel CloseChannel
+	userId       int64
+	connection   *websocket.Conn
+	closeChannel CloseChannel
+	pongChannel  PongChannel
 	sync.WaitGroup
 	sync.Mutex
 }
@@ -82,9 +82,7 @@ func (websocketConnection *WebsocketConnection) close() {
 	websocketConnections.remove(websocketConnection)
 }
 
-func (websocketConnection *WebsocketConnection) handlePingPong(pongChannel PongChannel) {
-	// TODO: move out ?
-	websocketConnection.Add(1)
+func (websocketConnection *WebsocketConnection) handlePingPong() {
 	defer websocketConnection.Done()
 
 	websocketTimeoutString := os.Getenv("WEBSOCKET_TIMEOUT_IN_SECOND")
@@ -106,9 +104,9 @@ func (websocketConnection *WebsocketConnection) handlePingPong(pongChannel PongC
 
 	for {
 		select {
-		case <-websocketConnection.CloseChannel:
+		case <-websocketConnection.closeChannel:
 			return
-		case <-pongChannel:
+		case <-websocketConnection.pongChannel:
 			hasPong = true
 			timeoutTicker.Stop()
 		case <-timeoutTicker.C:
