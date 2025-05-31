@@ -52,8 +52,8 @@ func Load(envFile string) (func(), error) {
 	return oldEnv.restore, nil
 }
 
-func (env *Environment) restore() {
-	for key, value := range *env {
+func (e *Environment) restore() {
+	for key, value := range *e {
 		if value == nil {
 			os.Unsetenv(key)
 		} else {

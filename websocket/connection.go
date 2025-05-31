@@ -1,16 +1,14 @@
 package websocket
 
 import (
-	"encoding/json"
-	"os"
-	"strconv"
 	"sync"
 	"time"
 
 	"github.com/gofiber/contrib/websocket"
 )
 
-type SessionId = string
+type PongChannel = chan struct{}
+type UserConnections = []*WebsocketConnection
 
 type WebsocketConnection struct {
 	userId       int64
@@ -22,76 +20,51 @@ type WebsocketConnection struct {
 }
 
 type WebsocketConnections struct {
-	Connections map[SessionId]*WebsocketConnection
+	connections map[int64]UserConnections
 	sync.Mutex
 }
 
-func (websocketConnections *WebsocketConnections) add(websocketConnection *WebsocketConnection) {
-	websocketConnections.Lock()
-	defer websocketConnections.Unlock()
-
-	websocketConnections.Connections[websocketConnection.SessionId] = websocketConnection
-}
-
-func (websocketConnections *WebsocketConnections) remove(websocketConnection *WebsocketConnection) {
-	websocketConnections.Lock()
-	defer websocketConnections.Unlock()
-
-	delete(websocketConnections.Connections, websocketConnection.SessionId)
-}
-
-func (websocketConnections *WebsocketConnections) get(sessionId SessionId) (*WebsocketConnection, bool) {
-	websocketConnections.Lock()
-	defer websocketConnections.Unlock()
-
-	websocketConnection, ok := websocketConnections.Connections[sessionId]
-
-	return websocketConnection, ok
-}
-
-func (websocketConnection *WebsocketConnection) writeMessage(messageType MessageType, message MessageContent) bool {
-	message["type"] = messageType
-
-	marshaledMessage, err := json.Marshal(message)
+func (w *WebsocketConnection) writeMessage(message Message) {
+	content, err := message.marshal()
 	if err != nil {
-		return false
+		return
 	}
 
-	websocketConnection.Lock()
-	defer websocketConnection.Unlock()
-	if err := websocketConnection.Connection.WriteMessage(websocket.TextMessage, marshaledMessage); err != nil {
-		return false
-	}
-
-	return true
+	w.writeBytes(content)
 }
 
-func (websocketConnection *WebsocketConnection) close() {
+func (w *WebsocketConnection) writeBytes(content []byte) {
+	w.Lock()
+	defer w.Unlock()
+
+	w.connection.WriteMessage(websocket.TextMessage, content)
+}
+
+func (w *WebsocketConnection) ping() {
+	w.Lock()
+	defer w.Unlock()
+
+	w.connection.WriteMessage(websocket.PingMessage, []byte{})
+}
+
+func (w *WebsocketConnection) close() {
+	// TODO mutex ?
 	select {
-	case _, ok := <-websocketConnection.CloseChannel:
+	case _, ok := <-w.CloseChannel:
 		if ok {
 			// TODO
-			close(websocketConnection.CloseChannel)
+			close(w.CloseChannel)
 		}
 	default:
 	}
-	websocketConnection.Connection.SetReadDeadline(time.Now())
+	w.connection.SetReadDeadline(time.Now())
 
 	// TODO: send close message and wait for close response
-	websocketConnection.Connection.Close()
-	websocketConnections.remove(websocketConnection)
+	w.connection.Close()
 }
 
-func (websocketConnection *WebsocketConnection) handlePingPong() {
-	defer websocketConnection.Done()
-
-	websocketTimeoutString := os.Getenv("WEBSOCKET_TIMEOUT_IN_SECOND")
-	websocketTimeout, err := strconv.ParseInt(websocketTimeoutString, 10, 64)
-	if err != nil {
-		websocketConnection.close()
-		return
-	}
-	timeout := time.Duration(websocketTimeout) * time.Second
+func (w *WebsocketConnection) handlePingPong(timeout time.Duration) {
+	defer w.Done()
 
 	pingTicker := time.NewTicker(2 * timeout)
 	defer pingTicker.Stop()
@@ -104,29 +77,62 @@ func (websocketConnection *WebsocketConnection) handlePingPong() {
 
 	for {
 		select {
-		case <-websocketConnection.closeChannel:
+		case <-w.closeChannel:
 			return
-		case <-websocketConnection.pongChannel:
+		case <-w.pongChannel:
 			hasPong = true
 			timeoutTicker.Stop()
 		case <-timeoutTicker.C:
-			websocketConnection.close()
+			w.close()
 			return
 		case <-pingTicker.C:
+			// TODO
 			if !hasPong {
 				continue
 			}
-			websocketConnection.Connection.WriteMessage(websocket.PingMessage, []byte{})
+			w.ping()
 			timeoutTicker.Reset(timeout)
 			hasPong = false
 		}
 	}
 }
 
-func (websocketConnections *WebsocketConnections) writeGlobalMessage(messageType MessageType, message MessageContent) {
-	// TODO: mutex ?
-	for _, websocketConnection := range websocketConnections.Connections {
-		// TODO: use go routine with buffered channel
-		websocketConnection.writeMessage(messageType, message)
+func (w *WebsocketConnections) add(websocketConnection *WebsocketConnection) {
+	w.Lock()
+	defer w.Unlock()
+
+	if userConnections, ok := w.connections[websocketConnection.userId]; ok {
+		w.connections[websocketConnection.userId] = append(userConnections, websocketConnection)
+	} else {
+		w.connections[websocketConnection.userId] = []*WebsocketConnection{websocketConnection}
+	}
+}
+
+func (w *WebsocketConnections) remove(websocketConnection *WebsocketConnection) {
+	// TODO
+	w.Lock()
+	defer w.Unlock()
+
+	userConnections, ok := w.connections[websocketConnection.userId]
+	if !ok {
+		return
+	}
+
+	delete(w.connections, websocketConnection.SessionId)
+}
+
+func (w *WebsocketConnections) writeGlobalMessage(message Message) {
+	content, err := message.marshal()
+	if err != nil {
+		return
+	}
+
+	w.Lock()
+	defer w.Unlock()
+	for _, userConnections := range w.connections {
+		for _, websocketConnection := range userConnections {
+			// TODO: use go routine with buffered channel
+			websocketConnection.writeBytes(content)
+		}
 	}
 }

@@ -1,13 +1,15 @@
 package websocket
 
+import "encoding/json"
+
 type MessageType = string
 type MessageContent = map[string]interface{}
 
 type Message struct {
-	MessageType         MessageType
-	Message             MessageContent
-	WebsocketConnection *WebsocketConnection
+	MessageType MessageType    `json:"type"`
+	Content     MessageContent `json:"content"`
 }
 
-// TODO: Marshal / Unmarshal
-// TODO: see websocket WriteJSON
+func (m *Message) marshal() ([]byte, error) {
+	return json.Marshal(m)
+}

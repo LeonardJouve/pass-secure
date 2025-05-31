@@ -12,43 +12,51 @@ import (
 )
 
 type CloseChannel = chan struct{}
+type DatabaseNotificationChannel = chan string
 
 type Hub struct {
+	timeout                     time.Duration
+	connections                 WebsocketConnections
 	closeChannel                CloseChannel
 	databaseNotificationChannel DatabaseNotificationChannel
 	sync.WaitGroup
 }
 
-func New() Hub {
+func New(timeout time.Duration) Hub {
 	return Hub{
+		timeout: timeout,
+		connections: WebsocketConnections{
+			connections: make(map[int64]UserConnections),
+		},
 		closeChannel:                make(CloseChannel),
 		databaseNotificationChannel: make(DatabaseNotificationChannel),
 	}
 }
 
-func (hub *Hub) Close() {
-	close(hub.closeChannel)
-	hub.Wait()
+func (h *Hub) Close() {
+	// TODO send or close ?
+	close(h.closeChannel)
+	h.Wait()
 }
 
-func (hub *Hub) Process() {
-	defer hub.Wait()
+func (h *Hub) Process() {
+	defer h.Wait()
 
-	hub.Add(1)
-	go hub.listenDatabaseNotifications()
+	h.Add(1)
+	go h.listenDatabaseNotifications()
 
 	for {
 		select {
-		case notification := <-hub.databaseNotificationChannel:
+		case notification := <-h.databaseNotificationChannel:
 			// TODO
-		case <-hub.closeChannel:
+		case <-h.closeChannel:
 			return
 		}
 	}
 }
 
-func (hub *Hub) listenDatabaseNotifications() {
-	defer hub.Done()
+func (h *Hub) listenDatabaseNotifications() {
+	defer h.Done()
 
 	conn, release, ctx, err := database.Acquire()
 	if err != nil {
@@ -74,7 +82,7 @@ func (hub *Hub) listenDatabaseNotifications() {
 			}
 
 			select {
-			case hub.databaseNotificationChannel <- notification.Payload:
+			case h.databaseNotificationChannel <- notification.Payload:
 			default:
 			}
 		}
@@ -82,14 +90,14 @@ func (hub *Hub) listenDatabaseNotifications() {
 
 	for {
 		select {
-		case <-hub.closeChannel:
+		case <-h.closeChannel:
 			cancel()
 			return
 		}
 	}
 }
 
-func (hub *Hub) HandleUpgrade() fiber.Handler {
+func (h *Hub) HandleUpgrade() fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		if !websocket.IsWebSocketUpgrade(c) {
 			return fiber.ErrUpgradeRequired
@@ -99,7 +107,7 @@ func (hub *Hub) HandleUpgrade() fiber.Handler {
 	}
 }
 
-func (hub *Hub) HandleSocket() fiber.Handler {
+func (h *Hub) HandleSocket() fiber.Handler {
 	return websocket.New(func(connection *websocket.Conn) {
 		user, ok := connection.Locals("user").(queries.User)
 		if !ok {
@@ -113,7 +121,7 @@ func (hub *Hub) HandleSocket() fiber.Handler {
 			pongChannel:  make(PongChannel, 1),
 		}
 
-		websocketConnections.add(&websocketConnection)
+		h.connections.add(&websocketConnection)
 
 		defer func() {
 			websocketConnection.Wait()
@@ -121,7 +129,7 @@ func (hub *Hub) HandleSocket() fiber.Handler {
 		}()
 
 		websocketConnection.Add(1)
-		go websocketConnection.handlePingPong()
+		go websocketConnection.handlePingPong(h.timeout)
 
 		for {
 			websocketMessageType, _, err := websocketConnection.connection.ReadMessage()
