@@ -9,6 +9,7 @@ import (
 	"github.com/LeonardJouve/pass-secure/database/queries"
 	"github.com/gofiber/contrib/websocket"
 	"github.com/gofiber/fiber/v2"
+	"github.com/google/uuid"
 )
 
 type CloseChannel = chan struct{}
@@ -35,24 +36,10 @@ func New(timeout time.Duration) Hub {
 
 func (h *Hub) Close() {
 	// TODO send or close ?
+	// TODO close other channels
 	close(h.closeChannel)
 	h.Wait()
-}
-
-func (h *Hub) Process() {
-	defer h.Wait()
-
-	h.Add(1)
-	go h.listenDatabaseNotifications()
-
-	for {
-		select {
-		case notification := <-h.databaseNotificationChannel:
-			// TODO
-		case <-h.closeChannel:
-			return
-		}
-	}
+	close(h.databaseNotificationChannel)
 }
 
 func (h *Hub) listenDatabaseNotifications() {
@@ -97,6 +84,24 @@ func (h *Hub) listenDatabaseNotifications() {
 	}
 }
 
+func (h *Hub) Process() {
+	defer h.Wait()
+
+	h.Add(1)
+	go h.listenDatabaseNotifications()
+
+	for {
+		select {
+		case notification := <-h.databaseNotificationChannel:
+			// TODO
+		case _, ok := <-h.closeChannel:
+			if !ok {
+				return
+			}
+		}
+	}
+}
+
 func (h *Hub) HandleUpgrade() fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		if !websocket.IsWebSocketUpgrade(c) {
@@ -115,6 +120,7 @@ func (h *Hub) HandleSocket() fiber.Handler {
 		}
 
 		websocketConnection := WebsocketConnection{
+			id:           uuid.New(),
 			userId:       user.ID,
 			connection:   connection,
 			closeChannel: make(CloseChannel, 1),

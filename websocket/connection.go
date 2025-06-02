@@ -5,12 +5,14 @@ import (
 	"time"
 
 	"github.com/gofiber/contrib/websocket"
+	"github.com/google/uuid"
 )
 
 type PongChannel = chan struct{}
 type UserConnections = []*WebsocketConnection
 
 type WebsocketConnection struct {
+	id           uuid.UUID
 	userId       int64
 	connection   *websocket.Conn
 	closeChannel CloseChannel
@@ -49,6 +51,7 @@ func (w *WebsocketConnection) ping() {
 
 func (w *WebsocketConnection) close() {
 	// TODO mutex ?
+	// TODO close other channels
 	select {
 	case _, ok := <-w.CloseChannel:
 		if ok {
@@ -109,7 +112,6 @@ func (w *WebsocketConnections) add(websocketConnection *WebsocketConnection) {
 }
 
 func (w *WebsocketConnections) remove(websocketConnection *WebsocketConnection) {
-	// TODO
 	w.Lock()
 	defer w.Unlock()
 
@@ -118,7 +120,17 @@ func (w *WebsocketConnections) remove(websocketConnection *WebsocketConnection) 
 		return
 	}
 
-	delete(w.connections, websocketConnection.SessionId)
+	for i, connection := range userConnections {
+		if connection.id == websocketConnection.id {
+			w.connections[websocketConnection.userId] = append(userConnections[:i], userConnections[i+1:]...)
+
+			if len(w.connections[websocketConnection.userId]) == 0 {
+				delete(w.connections, websocketConnection.userId)
+			}
+
+			return
+		}
+	}
 }
 
 func (w *WebsocketConnections) writeGlobalMessage(message Message) {
