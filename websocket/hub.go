@@ -2,6 +2,7 @@ package websocket
 
 import (
 	"context"
+	"encoding/json"
 	"sync"
 	"time"
 
@@ -21,13 +22,27 @@ type Hub struct {
 	closeChannel                CloseChannel
 	databaseNotificationChannel DatabaseNotificationChannel
 	sync.WaitGroup
+	sync.Once
 }
+
+type Notification struct {
+	Message json.RawMessage `json:"message"`
+	UserIds []int64         `json:"userIds"`
+}
+
+const (
+	MAX_READ_SIZE       = 512
+	WRITE_TIMEOUT       = 3 * time.Second
+	WRITE_WORKER_AMOUNT = 5
+)
 
 func New(timeout time.Duration) Hub {
 	return Hub{
 		timeout: timeout,
 		connections: WebsocketConnections{
-			connections: make(map[int64]UserConnections),
+			connections:  make(map[int64]UserConnections),
+			writeChannel: make(WriteChannel, WRITE_WORKER_AMOUNT),
+			closeChannel: make(CloseChannel, 1),
 		},
 		closeChannel:                make(CloseChannel),
 		databaseNotificationChannel: make(DatabaseNotificationChannel),
@@ -35,11 +50,12 @@ func New(timeout time.Duration) Hub {
 }
 
 func (h *Hub) Close() {
-	// TODO send or close ?
-	// TODO close other channels
-	close(h.closeChannel)
-	h.Wait()
-	close(h.databaseNotificationChannel)
+	h.Do(func() {
+		close(h.closeChannel)
+		h.Wait()
+		close(h.databaseNotificationChannel)
+		h.connections.close()
+	})
 }
 
 func (h *Hub) listenDatabaseNotifications() {
@@ -56,11 +72,11 @@ func (h *Hub) listenDatabaseNotifications() {
 	}
 
 	ctx, cancel := context.WithCancel(ctx)
-	var wg sync.WaitGroup
-	defer wg.Wait()
-	wg.Add(1)
+	defer cancel()
+
+	h.Add(1)
 	go func() {
-		defer wg.Done()
+		defer h.Done()
 
 		for {
 			notification, err := conn.Conn().WaitForNotification(ctx)
@@ -70,18 +86,13 @@ func (h *Hub) listenDatabaseNotifications() {
 
 			select {
 			case h.databaseNotificationChannel <- notification.Payload:
-			default:
+			case <-ctx.Done():
+				return
 			}
 		}
 	}()
 
-	for {
-		select {
-		case <-h.closeChannel:
-			cancel()
-			return
-		}
-	}
+	<-h.closeChannel
 }
 
 func (h *Hub) Process() {
@@ -90,14 +101,20 @@ func (h *Hub) Process() {
 	h.Add(1)
 	go h.listenDatabaseNotifications()
 
+	h.connections.Add(1)
+	go h.connections.handleWriteWorkers()
+
 	for {
 		select {
-		case notification := <-h.databaseNotificationChannel:
-			// TODO
-		case _, ok := <-h.closeChannel:
-			if !ok {
-				return
+		case databaseNotification := <-h.databaseNotificationChannel:
+			var notification Notification
+			if err := json.Unmarshal([]byte(databaseNotification), &notification); err != nil {
+				continue
 			}
+
+			h.connections.sendNotification(notification)
+		case <-h.closeChannel:
+			return
 		}
 	}
 }
@@ -120,38 +137,31 @@ func (h *Hub) HandleSocket() fiber.Handler {
 		}
 
 		websocketConnection := WebsocketConnection{
-			id:           uuid.New(),
-			userId:       user.ID,
-			connection:   connection,
-			closeChannel: make(CloseChannel, 1),
-			pongChannel:  make(PongChannel, 1),
+			id:                     uuid.New(),
+			userId:                 user.ID,
+			connection:             connection,
+			closeChannel:           make(CloseChannel, 1),
+			closeGracefullyChannel: make(CloseChannel, 1),
+			writeTimeout:           WRITE_TIMEOUT,
 		}
+		defer websocketConnection.close()
 
 		h.connections.add(&websocketConnection)
+		defer h.connections.remove(&websocketConnection)
 
-		defer func() {
-			websocketConnection.Wait()
-			websocketConnection.close()
-		}()
+		websocketConnection.connection.SetReadLimit(MAX_READ_SIZE)
 
 		websocketConnection.Add(1)
 		go websocketConnection.handlePingPong(h.timeout)
 
-		for {
-			websocketMessageType, _, err := websocketConnection.connection.ReadMessage()
-			if err != nil {
-				break
-			}
+		websocketConnection.Add(1)
+		go websocketConnection.readMessages()
 
-			switch websocketMessageType {
-			case websocket.PongMessage:
-				select {
-				case websocketConnection.pongChannel <- struct{}{}:
-					// TODO: received pong
-				default:
-				}
-			case websocket.CloseMessage:
-				close(websocketConnection.closeChannel)
+		for {
+			select {
+			case <-h.closeChannel:
+				return
+			case <-websocketConnection.closeChannel:
 				return
 			}
 		}

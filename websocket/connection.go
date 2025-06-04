@@ -8,37 +8,43 @@ import (
 	"github.com/google/uuid"
 )
 
-type PongChannel = chan struct{}
 type UserConnections = []*WebsocketConnection
+type WriteChannel = chan WriteWork
 
 type WebsocketConnection struct {
-	id           uuid.UUID
-	userId       int64
-	connection   *websocket.Conn
-	closeChannel CloseChannel
-	pongChannel  PongChannel
+	id                     uuid.UUID
+	userId                 int64
+	connection             *websocket.Conn
+	closeChannel           CloseChannel
+	closeGracefullyChannel CloseChannel
+	closeGracefullyOnce    sync.Once
+	writeTimeout           time.Duration
 	sync.WaitGroup
 	sync.Mutex
+	sync.Once
 }
 
 type WebsocketConnections struct {
-	connections map[int64]UserConnections
+	connections  map[int64]UserConnections
+	writeChannel WriteChannel
+	closeChannel CloseChannel
+	sync.WaitGroup
 	sync.Mutex
+	sync.Once
 }
 
-func (w *WebsocketConnection) writeMessage(message Message) {
-	content, err := message.marshal()
-	if err != nil {
-		return
-	}
-
-	w.writeBytes(content)
+type WriteWork struct {
+	connection *WebsocketConnection
+	content    []byte
 }
+
+const CLOSE_GRACEFULLY_TIMEOUT = 5 * time.Second
 
 func (w *WebsocketConnection) writeBytes(content []byte) {
 	w.Lock()
 	defer w.Unlock()
 
+	w.connection.SetWriteDeadline(time.Now().Add(w.writeTimeout))
 	w.connection.WriteMessage(websocket.TextMessage, content)
 }
 
@@ -46,69 +52,92 @@ func (w *WebsocketConnection) ping() {
 	w.Lock()
 	defer w.Unlock()
 
+	w.connection.SetWriteDeadline(time.Now().Add(w.writeTimeout))
 	w.connection.WriteMessage(websocket.PingMessage, []byte{})
 }
 
-func (w *WebsocketConnection) close() {
-	// TODO mutex ?
-	// TODO close other channels
-	select {
-	case _, ok := <-w.CloseChannel:
-		if ok {
-			// TODO
-			close(w.CloseChannel)
-		}
-	default:
-	}
-	w.connection.SetReadDeadline(time.Now())
+func (w *WebsocketConnection) askForClosure() {
+	w.connection.SetWriteDeadline(time.Now().Add(w.writeTimeout))
+	w.connection.WriteMessage(websocket.CloseMessage, []byte{})
 
-	// TODO: send close message and wait for close response
-	w.connection.Close()
+	select {
+	case <-w.closeGracefullyChannel:
+	case <-time.After(CLOSE_GRACEFULLY_TIMEOUT):
+		w.closeGracefullyOnce.Do(func() {
+			close(w.closeGracefullyChannel)
+		})
+	}
+}
+
+func (w *WebsocketConnection) closeGracefully() {
+	w.closeGracefullyOnce.Do(func() {
+		close(w.closeGracefullyChannel)
+		w.close()
+	})
+}
+
+func (w *WebsocketConnection) close() {
+	w.Do(func() {
+		w.askForClosure()
+		close(w.closeChannel)
+		w.Wait()
+		w.connection.Close()
+	})
 }
 
 func (w *WebsocketConnection) handlePingPong(timeout time.Duration) {
 	defer w.Done()
 
-	pingTicker := time.NewTicker(2 * timeout)
+	w.connection.SetReadDeadline(time.Now().Add(timeout))
+	w.connection.SetPongHandler(func(string) error {
+		w.connection.SetReadDeadline(time.Now().Add(timeout))
+		return nil
+	})
+
+	pingTicker := time.NewTicker(timeout * 9 / 10)
 	defer pingTicker.Stop()
-
-	timeoutTicker := time.NewTicker(timeout)
-	timeoutTicker.Stop()
-	defer timeoutTicker.Stop()
-
-	hasPong := true
 
 	for {
 		select {
 		case <-w.closeChannel:
 			return
-		case <-w.pongChannel:
-			hasPong = true
-			timeoutTicker.Stop()
-		case <-timeoutTicker.C:
-			w.close()
-			return
 		case <-pingTicker.C:
-			// TODO
-			if !hasPong {
-				continue
-			}
 			w.ping()
-			timeoutTicker.Reset(timeout)
-			hasPong = false
 		}
 	}
+}
+
+func (w *WebsocketConnection) readMessages() {
+	defer w.Done()
+
+	go func() {
+		for {
+			websocketMessageType, _, err := w.connection.ReadMessage()
+			if err != nil {
+				return
+			}
+
+			if websocketMessageType == websocket.CloseMessage {
+				w.closeGracefully()
+				return
+			}
+		}
+	}()
+
+	<-w.closeChannel
+	w.connection.SetReadDeadline(time.Now())
 }
 
 func (w *WebsocketConnections) add(websocketConnection *WebsocketConnection) {
 	w.Lock()
 	defer w.Unlock()
 
-	if userConnections, ok := w.connections[websocketConnection.userId]; ok {
-		w.connections[websocketConnection.userId] = append(userConnections, websocketConnection)
-	} else {
-		w.connections[websocketConnection.userId] = []*WebsocketConnection{websocketConnection}
+	userConnections, ok := w.connections[websocketConnection.userId]
+	if !ok {
+		userConnections = []*WebsocketConnection{}
 	}
+
+	w.connections[websocketConnection.userId] = append(userConnections, websocketConnection)
 }
 
 func (w *WebsocketConnections) remove(websocketConnection *WebsocketConnection) {
@@ -122,10 +151,10 @@ func (w *WebsocketConnections) remove(websocketConnection *WebsocketConnection) 
 
 	for i, connection := range userConnections {
 		if connection.id == websocketConnection.id {
-			w.connections[websocketConnection.userId] = append(userConnections[:i], userConnections[i+1:]...)
-
-			if len(w.connections[websocketConnection.userId]) == 0 {
+			if len(w.connections[websocketConnection.userId]) == 1 {
 				delete(w.connections, websocketConnection.userId)
+			} else {
+				w.connections[websocketConnection.userId] = append(userConnections[:i], userConnections[i+1:]...)
 			}
 
 			return
@@ -133,18 +162,46 @@ func (w *WebsocketConnections) remove(websocketConnection *WebsocketConnection) 
 	}
 }
 
-func (w *WebsocketConnections) writeGlobalMessage(message Message) {
-	content, err := message.marshal()
-	if err != nil {
-		return
-	}
-
+func (w *WebsocketConnections) sendNotification(notification Notification) {
 	w.Lock()
 	defer w.Unlock()
-	for _, userConnections := range w.connections {
+
+	for _, userId := range notification.UserIds {
+		userConnections, ok := w.connections[userId]
+		if !ok {
+			continue
+		}
+
 		for _, websocketConnection := range userConnections {
-			// TODO: use go routine with buffered channel
-			websocketConnection.writeBytes(content)
+			w.writeChannel <- WriteWork{
+				connection: websocketConnection,
+				content:    []byte(notification.Message),
+			}
 		}
 	}
+}
+
+func (w *WebsocketConnections) handleWriteWorkers() {
+	defer w.Done()
+
+	for {
+		select {
+		case work := <-w.writeChannel:
+			w.Add(1)
+			go func(work WriteWork) {
+				defer w.Done()
+				work.connection.writeBytes(work.content)
+			}(work)
+		case <-w.closeChannel:
+			return
+		}
+	}
+}
+
+func (w *WebsocketConnections) close() {
+	w.Do(func() {
+		close(w.closeChannel)
+		w.Wait()
+		close(w.writeChannel)
+	})
 }
