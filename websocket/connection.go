@@ -110,7 +110,10 @@ func (w *WebsocketConnection) handlePingPong(timeout time.Duration) {
 func (w *WebsocketConnection) readMessages() {
 	defer w.Done()
 
+	w.Add(1)
 	go func() {
+		defer w.Done()
+
 		for {
 			websocketMessageType, _, err := w.connection.ReadMessage()
 			if err != nil {
@@ -188,10 +191,11 @@ func (w *WebsocketConnections) handleWriteWorkers() {
 		select {
 		case work := <-w.writeChannel:
 			w.Add(1)
-			go func(work WriteWork) {
+			go func() {
 				defer w.Done()
+
 				work.connection.writeBytes(work.content)
-			}(work)
+			}()
 		case <-w.closeChannel:
 			return
 		}
