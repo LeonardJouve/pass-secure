@@ -14,6 +14,7 @@ Bitwarden share protocol: https://bitwarden.com/help/bitwarden-security-white-pa
 - Logging
 - Monitoring
 - Tracing
+- Encryption
 - Translation IO binding
 - Refresh token
 - Ansible

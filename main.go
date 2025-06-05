@@ -3,14 +3,13 @@ package main
 import (
 	"fmt"
 	"os"
+	"strconv"
 
 	"github.com/LeonardJouve/pass-secure/api"
 	"github.com/LeonardJouve/pass-secure/database"
 	"github.com/LeonardJouve/pass-secure/env"
 	"github.com/LeonardJouve/pass-secure/schemas"
 )
-
-const PORT = 3000
 
 func main() {
 	if os.Getenv("ENVIRONMENT") != "PRODUCTION" {
@@ -40,7 +39,13 @@ func main() {
 
 	schemas.Init()
 
-	stop, err := api.Start(PORT)
+	portString := os.Getenv("PORT")
+	port, err := strconv.ParseUint(portString, 10, 16)
+	if err != nil {
+		panic(err)
+	}
+
+	stop, err := api.Start(uint16(port))
 	if err != nil {
 		panic(err)
 	}
