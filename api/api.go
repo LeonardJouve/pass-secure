@@ -2,6 +2,8 @@ package api
 
 import (
 	"fmt"
+	"os"
+	"strconv"
 	"time"
 
 	"github.com/LeonardJouve/pass-secure/status"
@@ -13,7 +15,7 @@ func HealthCheck(c *fiber.Ctx) error {
 	return status.Ok(c, nil)
 }
 
-func Start(port uint16, websocketTimeout time.Duration) func() error {
+func Start(port uint16) func() error {
 	app := fiber.New()
 
 	app.Get("/healthcheck", HealthCheck)
@@ -23,7 +25,13 @@ func Start(port uint16, websocketTimeout time.Duration) func() error {
 
 	apiGroup := app.Group("", Protect)
 
-	hub := websocket.New(websocketTimeout)
+	websocketTimeoutString := os.Getenv("WEBSOCKET_TIMEOUT_IN_SECOND")
+	websocketTimeout, err := strconv.ParseInt(websocketTimeoutString, 10, 64)
+	if err != nil {
+		return func() error { return nil }
+	}
+
+	hub := websocket.New(time.Duration(websocketTimeout) * time.Second)
 	go hub.Process()
 	apiGroup.Get("/ws", hub.HandleUpgrade(), hub.HandleSocket())
 

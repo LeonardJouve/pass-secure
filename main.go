@@ -1,18 +1,13 @@
 package main
 
 import (
-	"crypto/rand"
-	"encoding/hex"
 	"fmt"
 	"os"
 
+	"github.com/LeonardJouve/pass-secure/api"
 	"github.com/LeonardJouve/pass-secure/database"
-	"github.com/LeonardJouve/pass-secure/database/models"
-	"github.com/LeonardJouve/pass-secure/database/queries"
 	"github.com/LeonardJouve/pass-secure/env"
 	"github.com/LeonardJouve/pass-secure/schemas"
-	"github.com/LeonardJouve/pass-secure/status"
-	"github.com/gofiber/fiber/v2"
 )
 
 const PORT = 3000
@@ -38,79 +33,8 @@ func main() {
 		panic(err)
 	}
 
-	go func() {
-		conn, release, ctx, err := database.Acquire()
-		if err != nil {
-			panic(err)
-		}
-		defer release()
-
-		_, err = conn.Exec(ctx, "LISTEN websocket_events")
-		if err != nil {
-			panic(err)
-		}
-
-		for {
-			notification, err := conn.Conn().WaitForNotification(ctx)
-			if err != nil {
-				panic(err)
-			}
-
-			fmt.Printf("Notification: %s\n", notification.Payload)
-		}
-	}()
-
-	generate := func(len int) string {
-		random := make([]byte, len)
-		if _, err := rand.Read(random); err != nil {
-			return ""
-		}
-
-		return hex.EncodeToString(random)
-	}
-
 	schemas.Init()
 
-	app := fiber.New()
-	app.Get("/test", func(c *fiber.Ctx) error {
-		qtx, ctx, commit, ok := database.BeginTransaction(c)
-		if !ok {
-			return nil
-		}
-		defer commit()
-
-		user, err := qtx.CreateUser(ctx, queries.CreateUserParams{
-			Email:    generate(10),
-			Username: generate(10),
-			Password: "password",
-		})
-		if err != nil {
-			return status.BadRequest(c, err)
-		}
-		fmt.Println("Created user")
-
-		user, err = qtx.UpdateUser(ctx, queries.UpdateUserParams{
-			ID:       user.ID,
-			Password: user.Password,
-			Username: generate(10),
-			Email:    generate(10),
-		})
-		if err != nil {
-			return status.InternalServerError(c, err)
-		}
-		fmt.Println("Updated user")
-
-		return status.Ok(c, models.SanitizeUser(c, &user))
-	})
-
-	app.Listen(fmt.Sprintf(":%d", PORT))
-	defer app.Shutdown()
-
-	// websocketTimeoutString := os.Getenv("WEBSOCKET_TIMEOUT_IN_SECOND")
-	// websocketTimeout, err := strconv.ParseInt(websocketTimeoutString, 10, 64)
-	// if err != nil {
-	// 	return
-	// }
-	// stop := api.Start(PORT, time.Duration(websocketTimeout) * time.Second)
-	// defer stop()
+	stop := api.Start(PORT)
+	defer stop()
 }
