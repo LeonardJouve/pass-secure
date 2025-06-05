@@ -1,7 +1,6 @@
 package api
 
 import (
-	"database/sql"
 	"errors"
 	"strconv"
 	"strings"
@@ -67,15 +66,16 @@ func Register(c *fiber.Ctx) error {
 		return nil
 	}
 
-	// TODO
-	_, err := qtx.GetUserByEmailOrUsername(ctx, queries.GetUserByEmailOrUsernameParams{
+	exists, err := qtx.HasUserWithEmailOrUsername(ctx, queries.HasUserWithEmailOrUsernameParams{
 		Email:    input.Email,
 		Username: input.Username,
 	})
-	if err == nil {
-		return status.BadRequest(c, errors.New("user with same identifiers already exists"))
-	} else if !errors.Is(err, sql.ErrNoRows) {
+	if err != nil {
 		return status.InternalServerError(c, nil)
+	}
+
+	if exists {
+		return status.BadRequest(c, errors.New("user with same identifiers already exists"))
 	}
 
 	user, err := qtx.CreateUser(ctx, input)

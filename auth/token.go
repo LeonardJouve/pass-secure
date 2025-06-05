@@ -1,8 +1,6 @@
 package auth
 
 import (
-	"database/sql"
-	"errors"
 	"fmt"
 	"strconv"
 	"time"
@@ -84,16 +82,15 @@ func IsExpired(c *fiber.Ctx, claims jwt.RegisteredClaims) bool {
 		return true
 	}
 
-	// TODO
-	_, err = qtx.GetUser(ctx, userId)
+	exists, err := qtx.HasUser(ctx, userId)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			status.Unauthorized(c, nil)
-			return true
-		} else {
-			status.InternalServerError(c, nil)
-			return true
-		}
+		status.InternalServerError(c, nil)
+		return true
+	}
+
+	if !exists {
+		status.Unauthorized(c, nil)
+		return true
 	}
 
 	if claims.ExpiresAt != nil && claims.ExpiresAt.Before(time.Now().UTC()) {

@@ -9,12 +9,10 @@ Bitwarden encryption protocol: https://bitwarden.com/help/bitwarden-security-whi
 Bitwarden share protocol: https://bitwarden.com/help/bitwarden-security-white-paper/#sharing-data-between-users
 
 **TODO:**
-- embed RSA certificates
 - CORS / CSRF
 - Invitations
+- `DELETE folders/{folder_id}/invite`
 - Logger
 - Monitoring
 - Ansible
-- Websocket
-- `DELETE folders/{folder_id}/invite`
 - Venom tests
