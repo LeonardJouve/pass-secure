@@ -1,8 +1,11 @@
 package auth
 
 import (
+	"errors"
 	"fmt"
+	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/LeonardJouve/pass-secure/database"
@@ -14,6 +17,7 @@ import (
 
 const (
 	ACCESS_TOKEN = "access_token"
+	CSRF_TOKEN   = "csrf_token"
 )
 
 func CreateToken(c *fiber.Ctx, userId int64) (string, bool) {
@@ -42,6 +46,7 @@ func CreateToken(c *fiber.Ctx, userId int64) (string, bool) {
 		Path:     "/",
 		Secure:   true,
 		HTTPOnly: true,
+		Domain:   os.Getenv("HOST"),
 	})
 
 	return token, true
@@ -99,4 +104,13 @@ func IsExpired(c *fiber.Ctx, claims jwt.RegisteredClaims) bool {
 	}
 
 	return false
+}
+
+func CsrfTokenExtractor(c *fiber.Ctx) (string, error) {
+	csrfToken := c.Get(CSRF_TOKEN, c.Cookies(CSRF_TOKEN))
+	if len(csrfToken) == 0 {
+		return "", errors.New("invalid csrf token")
+	}
+
+	return strings.Clone(csrfToken), nil
 }

@@ -5,14 +5,13 @@ import (
 	"time"
 
 	"github.com/gofiber/contrib/websocket"
-	"github.com/google/uuid"
 )
 
 type UserConnections = []*WebsocketConnection
 type WriteChannel = chan WriteWork
 
 type WebsocketConnection struct {
-	id                     uuid.UUID
+	id                     string
 	userId                 int64
 	connection             *websocket.Conn
 	closeChannel           CloseChannel

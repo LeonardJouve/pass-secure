@@ -3,6 +3,8 @@ package websocket
 import (
 	"context"
 	"encoding/json"
+	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -10,7 +12,7 @@ import (
 	"github.com/LeonardJouve/pass-secure/database/queries"
 	"github.com/gofiber/contrib/websocket"
 	"github.com/gofiber/fiber/v2"
-	"github.com/google/uuid"
+	"github.com/gofiber/fiber/v2/utils"
 )
 
 type CloseChannel = chan struct{}
@@ -138,7 +140,7 @@ func (h *Hub) HandleSocket() fiber.Handler {
 		}
 
 		websocketConnection := WebsocketConnection{
-			id:                     uuid.New(),
+			id:                     utils.UUIDv4(),
 			userId:                 user.ID,
 			connection:             connection,
 			closeChannel:           make(CloseChannel, 1),
@@ -168,6 +170,6 @@ func (h *Hub) HandleSocket() fiber.Handler {
 		}
 	}, websocket.Config{
 		HandshakeTimeout: 10 * time.Second,
-		// TODO Origins:          strings.Split(os.Getenv("ALLOWED_ORIGINS"), ","),
+		Origins:          strings.Split(os.Getenv("ALLOWED_ORIGINS"), ","),
 	})
 }
