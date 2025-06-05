@@ -14,7 +14,7 @@ const COMMENT = '#'
 func Load(envFile string) (func(), error) {
 	executable, err := os.Executable()
 	if err != nil {
-		return func() {}, err
+		return nil, err
 	}
 
 	envPath := path.Join(path.Dir(executable), envFile)

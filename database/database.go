@@ -59,12 +59,12 @@ func GetInstance() (*Database, error) {
 func Acquire() (*pgxpool.Conn, func(), context.Context, error) {
 	db, err := GetInstance()
 	if err != nil {
-		return nil, func() {}, nil, err
+		return nil, nil, nil, err
 	}
 
 	conn, err := db.pool.Acquire(db.ctx)
 	if err != nil {
-		return nil, func() {}, nil, err
+		return nil, nil, nil, err
 	}
 
 	return conn, func() {
@@ -76,13 +76,13 @@ func BeginTransaction(c *fiber.Ctx) (*queries.Queries, context.Context, func(), 
 	db, err := GetInstance()
 	if err != nil {
 		status.InternalServerError(c, nil)
-		return nil, nil, func() {}, false
+		return nil, nil, nil, false
 	}
 
 	conn, err := db.pool.Acquire(db.ctx)
 	if err != nil {
 		status.InternalServerError(c, nil)
-		return nil, nil, func() {}, false
+		return nil, nil, nil, false
 	}
 
 	ctx := context.Background()
@@ -90,7 +90,7 @@ func BeginTransaction(c *fiber.Ctx) (*queries.Queries, context.Context, func(), 
 	tx, err := conn.Begin(ctx)
 	if err != nil {
 		status.InternalServerError(c, nil)
-		return nil, nil, func() {}, false
+		return nil, nil, nil, false
 	}
 
 	return db.qry.WithTx(tx), ctx, func() {
