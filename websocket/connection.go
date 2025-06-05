@@ -165,9 +165,28 @@ func (w *WebsocketConnections) remove(websocketConnection *WebsocketConnection) 
 	}
 }
 
+func (w *WebsocketConnections) broadcastNotification(notification Notification) {
+	w.Lock()
+	defer w.Unlock()
+
+	for _, userConnections := range w.connections {
+		for _, websocketConnection := range userConnections {
+			w.writeChannel <- WriteWork{
+				connection: websocketConnection,
+				content:    []byte(notification.Message),
+			}
+		}
+	}
+}
+
 func (w *WebsocketConnections) sendNotification(notification Notification) {
 	w.Lock()
 	defer w.Unlock()
+
+	if notification.Broadcast {
+		w.broadcastNotification(notification)
+		return
+	}
 
 	for _, userId := range notification.UserIds {
 		userConnections, ok := w.connections[userId]

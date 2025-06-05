@@ -26,8 +26,9 @@ type Hub struct {
 }
 
 type Notification struct {
-	Message json.RawMessage `json:"message"`
-	UserIds []int64         `json:"userIds"`
+	Message   json.RawMessage `json:"message"`
+	Broadcast bool            `json:"broadcast"`
+	UserIds   []int64         `json:"user_ids"`
 }
 
 const (
