@@ -2,8 +2,10 @@ package api
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/LeonardJouve/pass-secure/status"
+	"github.com/LeonardJouve/pass-secure/websocket"
 	"github.com/gofiber/fiber/v2"
 )
 
@@ -11,7 +13,7 @@ func HealthCheck(c *fiber.Ctx) error {
 	return status.Ok(c, nil)
 }
 
-func Start(port uint16) func() error {
+func Start(port uint16, websocketTimeout time.Duration) func() error {
 	app := fiber.New()
 
 	app.Get("/healthcheck", HealthCheck)
@@ -20,6 +22,10 @@ func Start(port uint16) func() error {
 	app.Post("/register", Register)
 
 	apiGroup := app.Group("", Protect)
+
+	hub := websocket.New(websocketTimeout)
+	go hub.Process()
+	apiGroup.Get("/ws", hub.HandleUpgrade(), hub.HandleSocket())
 
 	folderGroup := apiGroup.Group("/folders")
 	folderGroup.Get("/", GetFolders)
@@ -44,5 +50,9 @@ func Start(port uint16) func() error {
 
 	app.Listen(fmt.Sprintf(":%d", port))
 
-	return app.Shutdown
+	return func() error {
+		hub.Close()
+
+		return app.Shutdown()
+	}
 }

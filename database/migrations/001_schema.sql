@@ -78,23 +78,234 @@ AFTER UPDATE ON folders
 FOR EACH ROW
 EXECUTE FUNCTION create_owner_user_folder();
 
-CREATE OR REPLACE FUNCTION test()
+CREATE OR REPLACE FUNCTION send_user_upsert_notification()
 RETURNS trigger AS $$
 BEGIN
     PERFORM pg_notify(
         'websocket_events',
         json_build_object(
-            'table', TG_TABLE_NAME,
-            'schema', TG_TABLE_SCHEMA,
-            'operation', TG_OP,
-            'id', NEW.id
+            'broadcast', TRUE,
+            'message', json_build_object(
+                'event', 'user_changed',
+                'id', NEW.id
+            )
         )::text
     );
+
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE OR REPLACE TRIGGER test
-AFTER UPDATE ON users
+CREATE OR REPLACE FUNCTION send_user_delete_notification()
+RETURNS trigger AS $$
+BEGIN
+    PERFORM pg_notify(
+        'websocket_events',
+        json_build_object(
+            'broadcast', TRUE,
+            'message', json_build_object(
+                'event', 'user_deleted',
+                'id', OLD.id
+            )
+        )::text
+    );
+
+    RETURN OLD;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION send_folder_upsert_notification()
+RETURNS trigger AS $$
+DECLARE
+    user_ids BIGINT[];
+BEGIN
+    SELECT ARRAY(
+        SELECT user_id
+        FROM user_folders
+        WHERE folder_id = NEW.id
+    ) INTO user_ids;
+
+    PERFORM pg_notify(
+        'websocket_events',
+        json_build_object(
+            'user_ids', user_ids,
+            'message', json_build_object(
+                'event', 'folder_changed',
+                'id', NEW.id
+            )
+        )::text
+    );
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION send_folder_delete_notification()
+RETURNS trigger AS $$
+DECLARE
+    user_ids BIGINT[];
+BEGIN
+    SELECT ARRAY(
+        SELECT user_id
+        FROM user_folders
+        WHERE folder_id = OLD.id
+    ) INTO user_ids;
+
+    PERFORM pg_notify(
+        'websocket_events',
+        json_build_object(
+            'user_ids', user_ids,
+            'message', json_build_object(
+                'event', 'folder_deleted',
+                'id', OLD.id
+            )
+        )::text
+    );
+
+    RETURN OLD;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION send_entry_upsert_notification()
+RETURNS trigger AS $$
+DECLARE
+    user_ids BIGINT[];
+BEGIN
+    SELECT ARRAY(
+        SELECT user_id
+        FROM user_folders
+        WHERE folder_id = NEW.folder_id
+    ) INTO user_ids;
+
+    PERFORM pg_notify(
+        'websocket_events',
+        json_build_object(
+            'user_ids', user_ids,
+            'message', json_build_object(
+                'event', 'entry_changed',
+                'id', NEW.id
+            )
+        )::text
+    );
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION send_entry_delete_notification()
+RETURNS trigger AS $$
+DECLARE
+    user_ids BIGINT[];
+BEGIN
+    SELECT ARRAY(
+        SELECT user_id
+        FROM user_folders
+        WHERE folder_id = OLD.folder_id
+    ) INTO user_ids;
+
+    PERFORM pg_notify(
+        'websocket_events',
+        json_build_object(
+            'user_ids', user_ids,
+            'message', json_build_object(
+                'event', 'entry_deleted',
+                'id', OLD.id
+            )
+        )::text
+    );
+
+    RETURN OLD;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION send_user_folders_upsert_notification()
+RETURNS trigger AS $$
+DECLARE
+    user_ids BIGINT[];
+BEGIN
+    SELECT ARRAY(
+        SELECT user_id
+        FROM user_folders
+        WHERE folder_id = NEW.folder_id
+    ) INTO user_ids;
+
+    PERFORM pg_notify(
+        'websocket_events',
+        json_build_object(
+            'user_ids', user_ids,
+            'message', json_build_object(
+                'event', 'folder_changed',
+                'id', NEW.folder_id
+            )
+        )::text
+    );
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION send_user_folders_delete_notification()
+RETURNS trigger AS $$
+DECLARE
+    user_ids BIGINT[];
+BEGIN
+    SELECT ARRAY(
+        SELECT user_id
+        FROM user_folders
+        WHERE folder_id = OLD.folder_id
+    ) INTO user_ids;
+
+    PERFORM pg_notify(
+        'websocket_events',
+        json_build_object(
+            'user_ids', user_ids,
+            'message', json_build_object(
+                'event', 'folder_changed',
+                'id', OLD.folder_id
+            )
+        )::text
+    );
+
+    RETURN OLD;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE TRIGGER upsert_user_notifications
+AFTER INSERT OR UPDATE ON users
 FOR EACH ROW
-EXECUTE FUNCTION test();
+EXECUTE FUNCTION send_user_upsert_notification();
+
+CREATE OR REPLACE TRIGGER delete_user_notifications
+BEFORE DELETE ON users
+FOR EACH ROW
+EXECUTE FUNCTION send_user_delete_notification();
+
+CREATE OR REPLACE TRIGGER upsert_folder_notifications
+AFTER INSERT OR UPDATE ON folders
+FOR EACH ROW
+EXECUTE FUNCTION send_folder_upsert_notification();
+
+CREATE OR REPLACE TRIGGER delete_folder_notifications
+BEFORE DELETE ON folders
+FOR EACH ROW
+EXECUTE FUNCTION send_folder_delete_notification();
+
+CREATE OR REPLACE TRIGGER upsert_entry_notifications
+AFTER INSERT OR UPDATE ON entries
+FOR EACH ROW
+EXECUTE FUNCTION send_entry_upsert_notification();
+
+CREATE OR REPLACE TRIGGER delete_entry_notifications
+BEFORE DELETE ON entries
+FOR EACH ROW
+EXECUTE FUNCTION send_entry_delete_notification();
+
+CREATE OR REPLACE TRIGGER upsert_user_folders_notifications
+AFTER INSERT OR UPDATE ON user_folders
+FOR EACH ROW
+EXECUTE FUNCTION send_user_folders_upsert_notification();
+
+CREATE OR REPLACE TRIGGER delete_user_folders_notifications
+BEFORE DELETE ON user_folders
+FOR EACH ROW
+EXECUTE FUNCTION send_user_folders_delete_notification();

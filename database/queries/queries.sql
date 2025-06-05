@@ -3,15 +3,26 @@ SELECT * FROM users;
 
 -- name: GetUser :one
 SELECT * FROM users
-WHERE id = $1 LIMIT 1;
+WHERE id = $1;
+
+-- name: HasUser :one
+SELECT EXISTS (
+    SELECT 1
+    FROM users
+    WHERE id = $1
+) AS exists;
+
 
 -- name: GetUserByEmail :one
 SELECT * FROM users
-WHERE email = $1 LIMIT 1;
+WHERE email = $1;
 
--- name: GetUserByEmailOrUsername :one
-SELECT * FROM users
-WHERE email = $1 OR username = $2 LIMIT 1;
+-- name: HasUserWithEmailOrUsername :one
+SELECT EXISTS (
+    SELECT 1
+    FROM users
+    WHERE email = $1 OR username = $2
+) AS exists;
 
 -- name: CreateUser :one
 INSERT INTO users(email, username, password)

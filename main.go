@@ -106,6 +106,11 @@ func main() {
 	app.Listen(fmt.Sprintf(":%d", PORT))
 	defer app.Shutdown()
 
-	// stop := api.Start(PORT)
+	// websocketTimeoutString := os.Getenv("WEBSOCKET_TIMEOUT_IN_SECOND")
+	// websocketTimeout, err := strconv.ParseInt(websocketTimeoutString, 10, 64)
+	// if err != nil {
+	// 	return
+	// }
+	// stop := api.Start(PORT, time.Duration(websocketTimeout) * time.Second)
 	// defer stop()
 }
