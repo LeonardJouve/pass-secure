@@ -98,7 +98,7 @@ func Login(c *fiber.Ctx) error {
 	}
 
 	return status.Ok(c, fiber.Map{
-		"accessToken": accessToken,
+		"access_token": accessToken,
 	})
 }
 
@@ -110,4 +110,15 @@ func getUser(c *fiber.Ctx) (queries.User, bool) {
 	}
 
 	return user, true
+}
+
+func GetCSRF(c *fiber.Ctx) error {
+	csrfToken, ok := c.Locals(auth.CSRF_TOKEN).(string)
+	if !ok || len(csrfToken) == 0 {
+		return status.InternalServerError(c, nil)
+	}
+
+	return status.Ok(c, fiber.Map{
+		"csrf_token": csrfToken,
+	})
 }

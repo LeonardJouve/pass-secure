@@ -1,11 +1,9 @@
 package auth
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/LeonardJouve/pass-secure/database"
@@ -104,13 +102,4 @@ func IsExpired(c *fiber.Ctx, claims jwt.RegisteredClaims) bool {
 	}
 
 	return false
-}
-
-func CsrfTokenExtractor(c *fiber.Ctx) (string, error) {
-	csrfToken := c.Get(CSRF_TOKEN, c.Cookies(CSRF_TOKEN))
-	if len(csrfToken) == 0 {
-		return "", errors.New("invalid csrf token")
-	}
-
-	return strings.Clone(csrfToken), nil
 }

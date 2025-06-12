@@ -28,7 +28,7 @@ func Start(port uint16) (func() error, error) {
 		AllowOrigins:     os.Getenv("ALLOWED_ORIGINS"),
 		AllowHeaders:     "Origin, Content-Type, Accept, X-CSRF-Token, Authorization",
 		AllowMethods:     "GET, POST, PUT, PATCH, DELETE",
-		AllowCredentials: true,
+		AllowCredentials: false, // used for dev purpose only TODO true,
 	}))
 
 	csrfTokenExpirationString := os.Getenv("CSRF_TOKEN_LIFETIME_IN_MINUTE")
@@ -48,10 +48,10 @@ func Start(port uint16) (func() error, error) {
 		CookieName:     auth.CSRF_TOKEN,
 		CookieDomain:   os.Getenv("HOST"),
 		CookiePath:     "/",
-		CookieSecure:   true,
+		CookieSecure:   false, // used for dev purpose only TODO true,
 		CookieSameSite: "Lax",
 		CookieHTTPOnly: true,
-		Extractor:      auth.CsrfTokenExtractor,
+		KeyLookup:      "header:X-CSRF-Token",
 		Expiration:     time.Duration(csrfTokenExpiration) * time.Minute,
 		KeyGenerator:   utils.UUIDv4,
 		Storage: redis.New(redis.Config{
@@ -65,6 +65,7 @@ func Start(port uint16) (func() error, error) {
 	}))
 
 	app.Get("/healthcheck", HealthCheck)
+	app.Get("/csrf", GetCSRF)
 
 	app.Post("/login", Login)
 	app.Post("/register", Register)
@@ -85,6 +86,8 @@ func Start(port uint16) (func() error, error) {
 	folderGroup.Get("/", GetFolders)
 	folderGroup.Get("/:folder_id", GetFolder)
 	folderGroup.Post("/", CreateFolder)
+	folderGroup.Post("/:folder_id/users", AddFolderUser)
+	folderGroup.Delete("/:folder_id/users", RemoveFolderUser)
 	folderGroup.Put("/:folder_id", UpdateFolder)
 	folderGroup.Delete("/:folder_id", RemoveFolder)
 
