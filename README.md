@@ -15,6 +15,7 @@ Bitwarden share protocol: https://bitwarden.com/help/bitwarden-security-white-pa
 - Logging
 - Monitoring
 - Tracing
+- Profiling
 - Encryption
 - Permissions
 - Translation IO binding
