@@ -87,7 +87,7 @@ func Start(port uint16) (func() error, error) {
 	folderGroup.Get("/:folder_id", GetFolder)
 	folderGroup.Post("/", CreateFolder)
 	folderGroup.Post("/:folder_id/users", AddFolderUser)
-	folderGroup.Delete("/:folder_id/users", RemoveFolderUser)
+	folderGroup.Delete("/:folder_id/users/:user_id", RemoveFolderUser)
 	folderGroup.Put("/:folder_id", UpdateFolder)
 	folderGroup.Delete("/:folder_id", RemoveFolder)
 

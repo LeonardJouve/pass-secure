@@ -166,6 +166,96 @@ func RemoveFolder(c *fiber.Ctx) error {
 	return status.Ok(c, nil)
 }
 
+func RemoveFolderUser(c *fiber.Ctx) error {
+	qtx, ctx, commit, ok := database.BeginTransaction(c)
+	if !ok {
+		return status.InternalServerError(c, nil)
+	}
+	defer commit()
+
+	folderId, err := c.ParamsInt("folder_id")
+	if err != nil {
+		return status.BadRequest(c, errors.New("invalid folder_id"))
+	}
+
+	userId, err := c.ParamsInt("user_id")
+	if err != nil {
+		return status.BadRequest(c, errors.New("invalid user_id"))
+	}
+
+	folder, ok := getUserFolder(c, int64(folderId))
+	if !ok {
+		return nil
+	}
+
+	user, ok := getUser(c)
+	if !ok {
+		return nil
+	}
+
+	if folder.OwnerID != user.ID {
+		return status.Unauthorized(c, errors.New("only folder owner can remove users"))
+	}
+
+	if user.ID == int64(userId) {
+		return status.Unauthorized(c, errors.New("folder owner can not be removed"))
+	}
+
+	qtx.DeleteFolderUser(ctx, queries.DeleteFolderUserParams{
+		UserID:   int64(userId),
+		FolderID: folder.ID,
+	})
+
+	return status.Ok(c, nil)
+}
+
+func AddFolderUser(c *fiber.Ctx) error {
+	qtx, ctx, commit, ok := database.BeginTransaction(c)
+	if !ok {
+		return status.InternalServerError(c, nil)
+	}
+	defer commit()
+
+	folderId, err := c.ParamsInt("folder_id")
+	if err != nil {
+		return status.BadRequest(c, errors.New("invalid folder_id"))
+	}
+
+	folder, ok := getUserFolder(c, int64(folderId))
+	if !ok {
+		return nil
+	}
+
+	user, ok := getUser(c)
+	if !ok {
+		return nil
+	}
+
+	if folder.OwnerID != user.ID {
+		return status.Unauthorized(c, errors.New("only folder owner can add users"))
+	}
+
+	input, ok := schemas.GetAddFolderUserInput(c)
+	if !ok {
+		return nil
+	}
+
+	addUser, err := qtx.GetUserByEmail(ctx, input.Email)
+	if err != nil {
+		return status.BadRequest(c, errors.New("invalid email"))
+	}
+
+	err = qtx.AddFolderUser(ctx, queries.AddFolderUserParams{
+		UserID:   addUser.ID,
+		FolderID: folder.ID,
+	})
+	if err != nil {
+		return status.InternalServerError(c, nil)
+	}
+
+	return status.Created(c, models.SanitizeUser(c, &addUser))
+}
+
 func getUserFolders(c *fiber.Ctx) ([]queries.Folder, bool) {
 	qtx, ctx, commit, ok := database.BeginTransaction(c)
 	if !ok {

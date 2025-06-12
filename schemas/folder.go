@@ -54,3 +54,22 @@ func GetUpdateFolderInput(c *fiber.Ctx) (queries.UpdateFolderParams, bool) {
 		ParentID: &input.ParentID,
 	}, true
 }
+
+type AddFolderUserInput struct {
+	Email string `json:"email" validate:"required"`
+}
+
+func GetAddFolderUserInput(c *fiber.Ctx) (AddFolderUserInput, bool) {
+	var input AddFolderUserInput
+	if err := c.BodyParser(&input); err != nil {
+		status.BadRequest(c, err)
+		return AddFolderUserInput{}, false
+	}
+
+	if err := validate.Struct(input); err != nil {
+		status.BadRequest(c, err)
+		return AddFolderUserInput{}, false
+	}
+
+	return input, true
+}

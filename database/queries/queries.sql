@@ -12,7 +12,6 @@ SELECT EXISTS (
     WHERE id = $1
 ) AS exists;
 
-
 -- name: GetUserByEmail :one
 SELECT * FROM users
 WHERE email = $1;
@@ -116,3 +115,12 @@ WHERE folder_id = $1;
 -- name: GetFoldersUsers :many
 SELECT * FROM user_folders
 WHERE folder_id = ANY($1::bigint[]);
+
+-- name: AddFolderUser :exec
+INSERT INTO user_folders(user_id, folder_id)
+VALUES($1, $2)
+ON CONFLICT (user_id, folder_id) DO NOTHING;
+
+-- name: DeleteFolderUser :exec
+DELETE FROM user_folders
+WHERE user_id = $1 AND folder_id = $2;

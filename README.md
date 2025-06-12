@@ -11,13 +11,12 @@ Bitwarden share protocol: https://bitwarden.com/help/bitwarden-security-white-pa
 `docker compose up -d database redis`
 
 **TODO:**
-- Invitations
-- `DELETE folders/{folder_id}/invite`
 - Use protobufs in another module -> automatically publish to npm
 - Logging
 - Monitoring
 - Tracing
 - Encryption
+- Permissions
 - Translation IO binding
 - Refresh token
 - Ansible
