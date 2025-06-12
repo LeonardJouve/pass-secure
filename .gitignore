@@ -2,3 +2,4 @@ rsa/*
 !rsa/.gitkeep
 .env
 database/queries/**/*.go
+tmp
