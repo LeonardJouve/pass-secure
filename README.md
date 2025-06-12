@@ -12,10 +12,12 @@ Bitwarden share protocol: https://bitwarden.com/help/bitwarden-security-white-pa
 
 **TODO:**
 - Use protobufs in another module -> automatically publish to npm
-- Logging
-- Monitoring
-- Tracing
-- Profiling
+- LGTM
+    - Logging
+    - Monitoring
+    - Tracing
+    - Profiling
+    - Auto-instrumentation
 - Encryption
 - Permissions
 - Translation IO binding
